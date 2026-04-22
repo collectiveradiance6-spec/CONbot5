@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' http://localhost:* data: blob:; img-src * data: blob:; font-src *; connect-src *;"/>
+<title>CONbot5 Supreme</title>
+<!-- Load full web dashboard from parent directory -->
+<script>
+// Redirect to web dashboard with Electron context
+window.ENV_API_URL  = 'http://localhost:3020';
+window.ENV_GUILD_ID = '';
+
+// Bridge Electron IPC to web dashboard commands
+if (window.CONbot5) {
+  window.addEventListener('DOMContentLoaded', ()=>{
+    window.CONbot5.getConfig().then(cfg=>{
+      window.ENV_GUILD_ID = cfg.GUILD_ID;
+      window.ENV_API_URL  = cfg.API_URL;
+    });
+  });
+}
+</script>
+</head>
+<body>
+<script>
+// Load the web dashboard
+window.location.href = '../index.html';
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+# ═══════════════════════════════════════════════════════════════════════
+# CONbot5 — Cloudflare Pages: _headers
+# Place at: apps/web/_headers  (Vite public/ or root output dir)
+# ═══════════════════════════════════════════════════════════════════════
+
+/*
+  X-Frame-Options: ALLOWALL
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+# Allow Discord to embed the Activity in an iframe
+# Required for Discord Embedded App SDK
+/launch-panel
+  X-Frame-Options: ALLOWALL
+  Content-Security-Policy: frame-ancestors https://discord.com https://ptb.discord.com https://canary.discord.com https://*.discordsays.com
+
+# API routes — CORS for bot polling and web dashboard
+/api/*
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
+  Access-Control-Allow-Headers: Content-Type, Authorization, X-Bot-Token

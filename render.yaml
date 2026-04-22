@@ -1,0 +1,72 @@
+# CONbot5 — Render.com Deployment Config
+
+services:
+  # ── Music Bot (Background Worker) ─────────────────────────────────
+  - type: worker
+    name: conbot5-bot
+    runtime: node
+    rootDir: apps/bot
+    buildCommand: npm install
+    startCommand: node src/index.js
+    plan: starter
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: BOT_PORT
+        value: "3010"
+      - key: DISCORD_BOT_TOKEN
+        sync: false
+      - key: DISCORD_CLIENT_ID
+        sync: false
+      - key: DISCORD_GUILD_ID
+        sync: false
+      - key: DJ_ROLE_ID
+        sync: false
+      - key: API_URL
+        sync: false
+      - key: API_BOT_TOKEN
+        sync: false
+      - key: YOUTUBE_COOKIE
+        sync: false
+      - key: SPOTIFY_CLIENT_ID
+        sync: false
+      - key: SPOTIFY_CLIENT_SECRET
+        sync: false
+      - key: PULSE_INTERVAL
+        value: "25000"
+      - key: RECONNECT_DELAY
+        value: "5000"
+
+  # ── API Service (Web Service) ──────────────────────────────────────
+  - type: web
+    name: conbot5-api
+    runtime: node
+    rootDir: services/api
+    buildCommand: npm install
+    startCommand: node src/index.js
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"
+      - key: API_BOT_TOKEN
+        sync: false
+
+  # ── WebSocket Gateway (Web Service) ───────────────────────────────
+  - type: web
+    name: conbot5-ws
+    runtime: node
+    rootDir: services/ws
+    buildCommand: npm install
+    startCommand: node src/index.js
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: WS_PORT
+        value: "10000"
+      - key: API_URL
+        sync: false

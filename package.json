@@ -1,0 +1,19 @@
+{
+  "name": "conbot5",
+  "version": "5.0.0",
+  "private": true,
+  "description": "CONbot5 — Supreme Music Intelligence Platform. Surpasses Rythm.",
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w services/api\" \"npm run dev -w services/ws\" \"npm run dev -w apps/bot\" \"npm run dev -w apps/web\"",
+    "build:web": "cd apps/web && npm run build",
+    "start:bot": "node apps/bot/src/index.js",
+    "start:api": "node services/api/src/index.js",
+    "start:ws": "node services/ws/src/index.js",
+    "start:desktop": "electron apps/desktop/main.js",
+    "install:all": "npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": { "node": ">=18.0.0" }
+}

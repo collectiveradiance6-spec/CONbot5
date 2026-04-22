@@ -1,0 +1,10 @@
+{
+  "name": "@conbot5/web",
+  "version": "5.0.0",
+  "private": true,
+  "scripts": {
+    "start": "python3 -m http.server 5173 --directory .",
+    "dev": "python3 -m http.server 5173 --directory .",
+    "build": "echo 'Static HTML — no build step required'"
+  }
+}
