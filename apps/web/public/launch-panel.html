@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<title>CONbot5 — Music Command Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=DM+Mono:wght@300;400;500&family=Satoshi:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+
+<style>
+/* ═══════════════════════════════════════════════════════════════════════
+   CONbot5 — LIQUID GLASS 2026 SUPREME
+   Based on Apple iOS 26 / macOS Tahoe design language
+   Real-time lensing · Specular highlights · Adaptive depth
+   ═══════════════════════════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* ── Core palette ── */
+  --bg:        #03040a;
+  --bg1:       #070a14;
+  --bg2:       #0b1022;
+  --cyan:      #56D9FF;
+  --mag:       #FF6ADF;
+  --vio:       #8B72FF;
+  --gold:      #FFCE69;
+  --red:       #FF4B4B;
+  --green:     #35FF9E;
+  --text:      #F0F6FF;
+  --muted:     #7A8FBF;
+  --dim:       #2D3D60;
+
+  /* ── Liquid Glass Material (Apple spec 2025/26) ──
+     Combines: real-time blur, light lensing, specular highlights
+     Adapts between light/dark, concentrates light rather than scattering */
+  --glass-bg:     rgba(255,255,255,.068);
+  --glass-bg-hi:  rgba(255,255,255,.115);
+  --glass-border: rgba(255,255,255,.14);
+  --glass-border-hi: rgba(255,255,255,.26);
+  --glass-spec:   rgba(255,255,255,.22);  /* specular highlight top edge */
+  --glass-spec-b: rgba(255,255,255,.08);  /* specular highlight bottom */
+  --glass-blur:   blur(32px) saturate(190%) brightness(1.05);
+
+  /* ── Typography ── */
+  --fd: 'Clash Display', system-ui, sans-serif;
+  --fb: 'Satoshi', system-ui, sans-serif;
+  --fm: 'DM Mono', 'SF Mono', monospace;
+
+  /* ── Spacing / Radius ── */
+  --r:    14px;
+  --r-lg: 22px;
+  --r-xl: 32px;
+  --r-pill: 999px;
+}
+
+html, body {
+  height: 100%; background: var(--bg);
+  color: var(--text); font-family: var(--fb);
+  font-size: 14px; line-height: 1.6;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ── SCENE ─────────────────────────────────────────────────────────── */
+.scene {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 55% 40% at 8% 12%,  rgba(86,217,255,.13) 0%,transparent 55%),
+    radial-gradient(ellipse 45% 35% at 90% 8%,  rgba(255,106,223,.11) 0%,transparent 50%),
+    radial-gradient(ellipse 50% 45% at 48% 88%, rgba(139,114,255,.10) 0%,transparent 55%),
+    radial-gradient(ellipse 30% 28% at 82% 58%, rgba(255,206,105,.07) 0%,transparent 45%),
+    linear-gradient(180deg, var(--bg1) 0%, var(--bg) 40%, #020309 100%);
+}
+
+.scene-grain {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: .15;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.88' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  background-size: 256px;
+}
+
+/* ── PRISMATIC RAIL (Apple Liquid Glass specular highlight bar) ─────── */
+.rail {
+  height: 2px; border-radius: var(--r-pill);
+  background: linear-gradient(90deg, var(--cyan), var(--mag), var(--vio), var(--gold), var(--cyan));
+  background-size: 300% 100%;
+  animation: rail 5s linear infinite;
+  box-shadow: 0 0 20px rgba(86,217,255,.4), 0 0 40px rgba(255,106,223,.2);
+}
+@keyframes rail { from{background-position:0%} to{background-position:300%} }
+
+/* ── APPLE LIQUID GLASS PANEL ──────────────────────────────────────── */
+.glass {
+  position: relative;
+  background: linear-gradient(
+    155deg,
+    rgba(255,255,255,.10) 0%,
+    rgba(255,255,255,.044) 35%,
+    rgba(255,255,255,.06) 70%,
+    rgba(255,255,255,.09) 100%
+  );
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-lg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow:
+    /* Top specular highlight — key Apple Liquid Glass signature */
+    0 1px 0 var(--glass-spec) inset,
+    0 -1px 0 var(--glass-spec-b) inset,
+    /* Ambient occlusion / depth shadow */
+    0 20px 60px rgba(0,0,0,.48),
+    0 4px 16px rgba(0,0,0,.32),
+    /* Subtle glow rim */
+    0 0 0 1px rgba(255,255,255,.055) inset;
+  overflow: hidden;
+  transition: border-color .22s, box-shadow .25s, transform .22s cubic-bezier(.25,.8,.25,1);
+}
+
+/* Apple "concentricShape" — specular refraction gradient overlay */
+.glass::before {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none; border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(255,255,255,.20) 0%,
+    rgba(255,255,255,.06) 14%,
+    transparent 22%,
+    transparent 64%,
+    rgba(255,255,255,.08) 78%,
+    rgba(255,255,255,.14) 88%,
+    transparent 96%
+  );
+  opacity: .55;
+}
+
+/* Hover — elevated specular + lift */
+.glass.lift:hover {
+  border-color: var(--glass-border-hi);
+  transform: translateY(-2px) scale(1.004);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.28) inset,
+    0 -1px 0 rgba(255,255,255,.10) inset,
+    0 28px 70px rgba(0,0,0,.52),
+    0 0 0 1px rgba(255,255,255,.10) inset,
+    0 0 36px rgba(86,217,255,.06);
+}
+
+/* ── SHELL ─────────────────────────────────────────────────────────── */
+.shell {
+  position: relative; z-index: 10;
+  display: grid; grid-template-rows: auto 2px 1fr auto;
+  height: 100vh; gap: 0;
+}
+
+/* ── TOPBAR ─────────────────────────────────────────────────────────── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 22px;
+  border-radius: 0; border-left: none; border-right: none; border-top: none;
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-orb {
+  width: 34px; height: 34px; border-radius: 10px;
+  background: linear-gradient(135deg, var(--vio), var(--mag));
+  display: flex; align-items: center; justify-content: center; font-size: 17px;
+  box-shadow: 0 0 20px rgba(139,114,255,.4);
+}
+.brand-name { font-family: var(--fd); font-size: 18px; font-weight: 700; letter-spacing: -.02em; }
+.brand-ver { font-family: var(--fm); font-size: 10px; color: var(--muted); margin-top: 1px; }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.conn-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--green);
+  box-shadow: 0 0 8px rgba(53,255,158,.7);
+  animation: blink 2.5s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+.conn-label { font-family: var(--fm); font-size: 10px; color: var(--muted); letter-spacing: .06em; }
+.user-pill {
+  display: flex; align-items: center; gap: 7px;
+  padding: 4px 10px 4px 4px; border-radius: var(--r-pill);
+  border: 1px solid var(--glass-border); background: var(--glass-bg);
+  font-size: 12px; font-weight: 500; cursor: default;
+}
+.user-av {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--vio), var(--cyan));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: #fff; overflow: hidden;
+}
+.user-av img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+
+/* ── BODY ───────────────────────────────────────────────────────────── */
+.body {
+  display: grid; grid-template-columns: 260px 1fr;
+  gap: 14px; padding: 14px 18px;
+  overflow: hidden; min-height: 0;
+}
+
+/* ── SIDEBAR ────────────────────────────────────────────────────────── */
+.sidebar { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; padding-right: 4px; }
+.sidebar::-webkit-scrollbar { width: 3px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+
+/* ── NOW PLAYING CARD ────────────────────────────────────────────────── */
+.np-card { padding: 16px; }
+.np-artwork {
+  width: 100%; aspect-ratio: 1; border-radius: 12px;
+  background: linear-gradient(135deg, var(--bg2), var(--bg));
+  border: 1px solid var(--glass-border);
+  overflow: hidden; margin-bottom: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 36px; position: relative;
+  box-shadow: 0 12px 40px rgba(0,0,0,.6), 0 0 30px rgba(86,217,255,.12);
+  transition: box-shadow .4s;
+}
+.np-artwork.playing { box-shadow: 0 12px 50px rgba(0,0,0,.7), 0 0 50px rgba(86,217,255,.22), 0 0 80px rgba(139,114,255,.12); }
+.np-artwork img { width: 100%; height: 100%; object-fit: cover; }
+.np-title { font-family: var(--fd); font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; }
+.np-sub { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+
+/* Progress */
+.prog-wrap { margin-bottom: 12px; }
+.prog-track {
+  height: 3px; background: rgba(255,255,255,.1); border-radius: var(--r-pill);
+  cursor: pointer; position: relative; transition: height .15s;
+}
+.prog-track:hover { height: 5px; }
+.prog-fill {
+  height: 100%; border-radius: var(--r-pill); position: relative;
+  background: linear-gradient(90deg, var(--cyan), var(--vio));
+  transition: width .8s linear;
+}
+.prog-times { display: flex; justify-content: space-between; margin-top: 5px; font-family: var(--fm); font-size: 10px; color: var(--muted); }
+
+/* Volume */
+.vol-row { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.vol-slider {
+  flex: 1; -webkit-appearance: none; appearance: none;
+  height: 3px; background: rgba(255,255,255,.1); border-radius: var(--r-pill);
+  outline: none; cursor: pointer;
+}
+.vol-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%;
+  background: var(--vio); cursor: pointer;
+  box-shadow: 0 0 8px rgba(139,114,255,.6);
+}
+.vol-icon { font-size: 12px; color: var(--muted); flex-shrink: 0; }
+.vol-val { font-family: var(--fm); font-size: 10px; color: var(--muted); flex-shrink: 0; width: 28px; text-align: right; }
+
+/* Transport */
+.transport { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.tbtn {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 1px solid var(--glass-border); background: var(--glass-bg);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 14px; color: var(--muted);
+  transition: all .15s; backdrop-filter: blur(12px);
+}
+.tbtn:hover { color: var(--text); border-color: var(--glass-border-hi); background: var(--glass-bg-hi); }
+.tbtn:active { transform: scale(.92); }
+.tbtn.primary {
+  width: 46px; height: 46px; font-size: 19px;
+  background: linear-gradient(135deg, var(--vio), var(--mag));
+  border-color: transparent; color: #fff;
+  box-shadow: 0 0 22px rgba(139,114,255,.45);
+}
+.tbtn.primary:hover { box-shadow: 0 0 32px rgba(139,114,255,.65); }
+.tbtn.active { border-color: var(--cyan); color: var(--cyan); background: rgba(86,217,255,.12); }
+
+/* Mode badges */
+.mode-badges { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; margin-top: 10px; }
+.mbadge {
+  padding: 2px 8px; border-radius: var(--r-pill); font-family: var(--fm); font-size: 9px;
+  font-weight: 500; letter-spacing: .06em; border: 1px solid;
+}
+.mb-cyan { background: rgba(86,217,255,.12); color: var(--cyan); border-color: rgba(86,217,255,.25); }
+.mb-vio  { background: rgba(139,114,255,.12); color: var(--vio); border-color: rgba(139,114,255,.25); }
+.mb-gold { background: rgba(255,206,105,.12); color: var(--gold); border-color: rgba(255,206,105,.25); }
+.mb-mag  { background: rgba(255,106,223,.12); color: var(--mag); border-color: rgba(255,106,223,.25); }
+
+/* Nav */
+.nav-label { font-family: var(--fm); font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: .1em; padding: 0 10px; margin-top: 2px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px; padding: 9px 10px;
+  border-radius: 10px; border: 1px solid transparent;
+  background: transparent; color: var(--muted); cursor: pointer;
+  font-family: var(--fb); font-size: 12px; font-weight: 500;
+  transition: all .15s; text-align: left; width: 100%;
+}
+.nav-item:hover { background: var(--glass-bg); border-color: var(--glass-border); color: var(--text); }
+.nav-item.active { background: rgba(139,114,255,.12); border-color: rgba(139,114,255,.28); color: var(--text); }
+.nav-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+.nav-badge {
+  margin-left: auto; font-family: var(--fm); font-size: 9px;
+  background: var(--vio); color: #fff; border-radius: var(--r-pill); padding: 1px 6px;
+}
+
+/* Telemetry cards */
+.tele-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.tele-card { padding: 10px; border-radius: 10px; background: var(--glass-bg); border: 1px solid var(--glass-border); }
+.tele-val { font-family: var(--fd); font-size: 20px; font-weight: 700; }
+.tele-key { font-size: 9px; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; margin-top: 1px; }
+.tele-cyan .tele-val { color: var(--cyan); }
+.tele-mag  .tele-val { color: var(--mag); }
+.tele-vio  .tele-val { color: var(--vio); }
+.tele-gold .tele-val { color: var(--gold); }
+
+/* ── MAIN PANEL ──────────────────────────────────────────────────────── */
+.main { display: flex; flex-direction: column; gap: 12px; overflow: hidden; min-height: 0; }
+
+.panel-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px 10px; }
+.panel-head h2 { font-family: var(--fd); font-size: 17px; font-weight: 700; }
+.panel-head .hint { font-size: 11px; color: var(--muted); }
+
+/* Tabs */
+.tabs { display: flex; gap: 5px; padding: 0 16px 10px; }
+.tab {
+  padding: 6px 14px; border-radius: var(--r-pill);
+  border: 1px solid var(--glass-border); background: transparent;
+  color: var(--muted); cursor: pointer; font-size: 12px; font-weight: 500;
+  transition: all .15s; font-family: var(--fb);
+}
+.tab.active { background: rgba(139,114,255,.12); border-color: rgba(139,114,255,.3); color: var(--text); }
+.tab:hover:not(.active) { background: var(--glass-bg); color: var(--text); }
+
+/* Queue list */
+.queue-list { display: flex; flex-direction: column; gap: 5px; padding: 0 14px 14px; overflow-y: auto; flex: 1; }
+.queue-list::-webkit-scrollbar { width: 3px; }
+.queue-list::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+.q-item {
+  display: flex; align-items: center; gap: 11px; padding: 9px 11px;
+  border-radius: 10px; border: 1px solid transparent;
+  transition: all .15s; cursor: pointer;
+}
+.q-item:hover { background: var(--glass-bg); border-color: var(--glass-border); }
+.q-item.now { background: rgba(86,217,255,.06); border-color: rgba(86,217,255,.22); }
+.q-num { font-family: var(--fm); font-size: 10px; color: var(--dim); width: 18px; text-align: right; flex-shrink: 0; }
+.q-thumb {
+  width: 36px; height: 36px; border-radius: 6px; flex-shrink: 0;
+  background: var(--bg2); border: 1px solid var(--glass-border);
+  overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 14px;
+}
+.q-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.q-info { flex: 1; min-width: 0; }
+.q-title { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.q-meta { font-size: 10px; color: var(--muted); }
+.q-dur { font-family: var(--fm); font-size: 10px; color: var(--dim); flex-shrink: 0; }
+
+/* Search */
+.search-row { display: flex; gap: 8px; padding: 0 14px 10px; }
+.search-in {
+  flex: 1; padding: 9px 13px; border-radius: 10px;
+  border: 1px solid var(--glass-border); background: var(--glass-bg);
+  color: var(--text); font-family: var(--fb); font-size: 12px;
+  backdrop-filter: blur(12px); outline: none; transition: border-color .15s;
+}
+.search-in:focus { border-color: var(--vio); }
+.search-in::placeholder { color: var(--dim); }
+.search-go {
+  padding: 9px 16px; border-radius: 10px;
+  border: 1px solid rgba(139,114,255,.3); background: rgba(139,114,255,.12);
+  color: var(--text); cursor: pointer; font-family: var(--fd); font-size: 11px; font-weight: 700;
+  transition: all .15s;
+}
+.search-go:hover { background: rgba(139,114,255,.24); box-shadow: 0 0 16px rgba(139,114,255,.2); }
+
+/* Search results */
+.sr-list { display: flex; flex-direction: column; gap: 5px; padding: 0 14px 14px; overflow-y: auto; flex: 1; }
+.sr-list::-webkit-scrollbar { width: 3px; }
+.sr-list::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+.sr-item {
+  display: flex; align-items: center; gap: 10px; padding: 9px 11px;
+  border-radius: 10px; border: 1px solid var(--glass-border); background: var(--glass-bg);
+  cursor: pointer; transition: all .15s;
+}
+.sr-item:hover { border-color: var(--cyan); background: rgba(86,217,255,.06); }
+.sr-thumb { width: 38px; height: 38px; border-radius: 6px; flex-shrink: 0; background: var(--bg2); overflow: hidden; }
+.sr-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.sr-info { flex: 1; min-width: 0; }
+.sr-title { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sr-ch { font-size: 10px; color: var(--muted); }
+.sr-dur { font-family: var(--fm); font-size: 10px; color: var(--dim); flex-shrink: 0; }
+.sr-add { width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--glass-border); background: var(--glass-bg); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--green); flex-shrink: 0; transition: all .15s; }
+.sr-item:hover .sr-add { border-color: var(--green); background: rgba(53,255,158,.1); }
+
+/* Moods */
+.mood-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; padding: 0 14px 14px; }
+.mood-btn {
+  padding: 12px 8px; border-radius: 12px; border: 1px solid var(--glass-border);
+  background: var(--glass-bg); cursor: pointer; text-align: center;
+  font-size: 10px; color: var(--muted); font-family: var(--fb); font-weight: 500;
+  transition: all .18s;
+}
+.mood-btn:hover { border-color: var(--glass-border-hi); color: var(--text); background: var(--glass-bg-hi); }
+.mood-btn.active { color: var(--text); background: rgba(139,114,255,.12); }
+.mood-emoji { font-size: 18px; display: block; margin-bottom: 4px; }
+
+/* Admin */
+.admin-wrap { display: flex; flex-wrap: wrap; gap: 7px; padding: 0 14px 14px; }
+.admin-btn {
+  padding: 9px 14px; border-radius: 10px;
+  border: 1px solid var(--glass-border); background: var(--glass-bg);
+  color: var(--text); cursor: pointer; font-family: var(--fd); font-size: 11px; font-weight: 700;
+  transition: all .15s; flex-shrink: 0;
+}
+.admin-btn:hover { border-color: var(--glass-border-hi); background: var(--glass-bg-hi); }
+.admin-btn.danger { border-color: rgba(255,75,75,.3); color: var(--red); }
+.admin-btn.danger:hover { background: rgba(255,75,75,.1); }
+.raw-state {
+  font-family: var(--fm); font-size: 9px; color: var(--muted);
+  white-space: pre-wrap; word-break: break-all;
+  background: var(--bg2); padding: 10px; border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  max-height: 200px; overflow-y: auto; margin: 0 14px 14px;
+}
+
+/* Empty state */
+.empty { text-align: center; padding: 36px 16px; color: var(--dim); }
+.empty-icon { font-size: 28px; margin-bottom: 8px; opacity: .4; }
+.empty-p { font-size: 11px; }
+
+/* ── STATUS BAR ──────────────────────────────────────────────────────── */
+.statusbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 18px;
+  border-radius: 0; border-left: none; border-right: none; border-bottom: none;
+  font-family: var(--fm); font-size: 9px; color: var(--dim);
+}
+.sb-dots { display: flex; align-items: center; gap: 10px; }
+.sb-dot { display: flex; align-items: center; gap: 4px; }
+.dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; background: var(--dim); }
+.dot.on { background: var(--green); box-shadow: 0 0 5px rgba(53,255,158,.6); }
+
+/* Toast */
+.toast-wrap { position: fixed; bottom: 20px; right: 18px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.toast {
+  padding: 10px 16px; border-radius: 10px;
+  border: 1px solid rgba(53,255,158,.25); background: rgba(53,255,158,.08);
+  color: var(--green); font-size: 12px; font-weight: 500;
+  backdrop-filter: blur(20px);
+  transform: translateX(10px); opacity: 0;
+  transition: all .28s cubic-bezier(.25,.8,.25,1); pointer-events: auto;
+}
+.toast.show { transform: translateX(0); opacity: 1; }
+.toast.err { border-color: rgba(255,75,75,.25); background: rgba(255,75,75,.08); color: var(--red); }
+
+/* Loading ring */
+.ring { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.1); border-top-color: var(--cyan); border-radius: 50%; animation: spin 1s linear infinite; display: inline-block; }
+@keyframes spin { to{transform:rotate(360deg)} }
+
+/* Fade in */
+.fi { animation: fi .3s ease; }
+@keyframes fi { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+</style>
+</head>
+<body>
+
+<div class="scene"></div>
+<div class="scene-grain"></div>
+
+<div class="shell">
+
+  <!-- TOPBAR -->
+  <header class="glass topbar">
+    <div class="brand">
+      <div class="brand-orb">🎵</div>
+      <div>
+        <div class="brand-name">CONbot5</div>
+        <div class="brand-ver">SUPREME v5.0 · MUSIC INTELLIGENCE</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="conn-dot" id="connDot"></div>
+      <div class="conn-label" id="connLabel">CONNECTING</div>
+      <div class="user-pill">
+        <div class="user-av" id="userAv">?</div>
+        <span id="userName">—</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- RAIL -->
+  <div class="rail"></div>
+
+  <!-- BODY -->
+  <div class="body">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+      <!-- Now Playing -->
+      <div class="glass np-card">
+        <div class="np-artwork" id="npArt">
+          <span id="npArtIcon">🎵</span>
+        </div>
+        <div class="np-title" id="npTitle">Nothing playing</div>
+        <div class="np-sub" id="npSub">—</div>
+        <div class="prog-wrap">
+          <div class="prog-track"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+          <div class="prog-times"><span id="tEl">0:00</span><span id="tDur">0:00</span></div>
+        </div>
+        <div class="vol-row">
+          <span class="vol-icon">🔉</span>
+          <input type="range" class="vol-slider" id="volSlider" min="0" max="100" value="80"
+            oninput="el('volVal').textContent=this.value+'%'"
+            onchange="cmd('volume',{level:parseInt(this.value)})"/>
+          <span class="vol-icon">🔊</span>
+          <span class="vol-val" id="volVal">80%</span>
+        </div>
+        <div class="transport">
+          <button class="tbtn" id="btnShuf" title="Shuffle" onclick="cmd('shuffle')">🔀</button>
+          <button class="tbtn" onclick="cmd('prev')">⏮</button>
+          <button class="tbtn primary" id="btnPlay" onclick="togglePlay()">▶</button>
+          <button class="tbtn" onclick="cmd('skip')">⏭</button>
+          <button class="tbtn" id="btnLoop" onclick="cycleLoop()">🔁</button>
+        </div>
+        <div class="mode-badges" id="modeBadges"></div>
+      </div>
+
+      <!-- Telemetry -->
+      <div class="glass" style="padding:14px">
+        <div class="nav-label" style="padding:0 0 8px">Telemetry</div>
+        <div class="tele-grid">
+          <div class="tele-card tele-cyan"><div class="tele-val" id="stQ">0</div><div class="tele-key">Queue</div></div>
+          <div class="tele-card tele-mag"><div class="tele-val" id="stH">0</div><div class="tele-key">History</div></div>
+          <div class="tele-card tele-vio"><div class="tele-val" id="stV">80%</div><div class="tele-key">Volume</div></div>
+          <div class="tele-card tele-gold"><div class="tele-val" id="stM">—</div><div class="tele-key">Mode</div></div>
+        </div>
+      </div>
+
+      <!-- Nav -->
+      <div class="glass" style="padding:10px 8px">
+        <div class="nav-label">Views</div>
+        <div style="display:flex;flex-direction:column;gap:2px;margin-top:6px">
+          <button class="nav-item active" data-p="queue" onclick="switchPanel('queue',this)"><span class="nav-icon">📋</span>Queue<span class="nav-badge" id="qBadge">0</span></button>
+          <button class="nav-item" data-p="search" onclick="switchPanel('search',this)"><span class="nav-icon">🔍</span>Search</button>
+          <button class="nav-item" data-p="moods" onclick="switchPanel('moods',this)"><span class="nav-icon">🎭</span>Mood Rooms</button>
+          <button class="nav-item" data-p="admin" onclick="switchPanel('admin',this)"><span class="nav-icon">⚙️</span>Admin</button>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main glass" style="overflow:hidden">
+
+      <!-- Queue panel -->
+      <div id="pnl-queue" data-panel="queue" style="display:flex;flex-direction:column;height:100%">
+        <div class="panel-head"><h2>Queue Intelligence</h2><span class="hint" id="qHint">0 tracks</span></div>
+        <div class="queue-list" id="queueList">
+          <div class="empty"><div class="empty-icon">📭</div><p class="empty-p">Queue is empty — play something</p></div>
+        </div>
+      </div>
+
+      <!-- Search panel -->
+      <div id="pnl-search" data-panel="search" style="display:none;flex-direction:column;height:100%">
+        <div class="panel-head"><h2>Search</h2><span class="hint">YouTube · Spotify · SoundCloud</span></div>
+        <div class="search-row">
+          <input class="search-in" id="searchIn" placeholder="Song title, artist, or URL…" onkeydown="if(event.key==='Enter')doSearch()"/>
+          <button class="search-go" onclick="doSearch()">⌕ Go</button>
+        </div>
+        <div class="sr-list" id="srList">
+          <div class="empty"><div class="empty-icon">🔍</div><p class="empty-p">Enter a search query above</p></div>
+        </div>
+      </div>
+
+      <!-- Moods panel -->
+      <div id="pnl-moods" data-panel="moods" style="display:none;flex-direction:column;overflow-y:auto">
+        <div class="panel-head"><h2>Mood Rooms</h2><span class="hint">24/7 ambient autoplay</span></div>
+        <div class="mood-grid" id="moodGrid"></div>
+      </div>
+
+      <!-- Admin panel -->
+      <div id="pnl-admin" data-panel="admin" style="display:none;flex-direction:column;overflow-y:auto">
+        <div class="panel-head"><h2>Admin Throne</h2><span class="hint">DJ operations</span></div>
+        <div class="admin-wrap">
+          <button class="admin-btn" onclick="cmd('shuffle')">🔀 Shuffle</button>
+          <button class="admin-btn" onclick="cmd('autoplay')">🤖 AutoPlay</button>
+          <button class="admin-btn" onclick="cmd('clear')">🗑 Clear Queue</button>
+          <button class="admin-btn" onclick="cmd('skip')">⏭ Force Skip</button>
+          <button class="admin-btn danger" onclick="cmd('stop')">⏹ Stop All</button>
+        </div>
+        <div class="nav-label" style="padding:0 14px 8px">Raw State</div>
+        <pre class="raw-state" id="rawState">Waiting…</pre>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- STATUSBAR -->
+  <footer class="glass statusbar">
+    <div class="sb-dots">
+      <div class="sb-dot"><div class="dot" id="dBot"></div><span>Bot</span></div>
+      <div class="sb-dot"><div class="dot" id="dApi"></div><span>API</span></div>
+      <div class="sb-dot"><div class="dot" id="dSse"></div><span>SSE</span></div>
+    </div>
+    <span id="sbMsg">Initializing…</span>
+    <span id="guildTag" style="font-size:9px;color:var(--dim)"></span>
+  </footer>
+
+</div>
+
+<!-- Toast wrap -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+// CONbot5 Launch Panel 2026 — Supreme Runtime
+// Apple Liquid Glass Design Language · Full control surface
+// ═══════════════════════════════════════════════════════════════════════
+
+const API_URL  = (window.CONBOT5_API_URL  || 'https://conbot5-api.onrender.com').replace(/\/$/,'');
+const GUILD_ID = window.CONBOT5_GUILD_ID  || new URLSearchParams(location.search).get('guild') || '';
+const CLIENT_ID= window.CONBOT5_CLIENT_ID || '';
+
+// ── STATE ──────────────────────────────────────────────────────────────
+let state = {}, sseSource = null, loopMode = 'off', activePanel = 'queue';
+
+// ── MOODS ──────────────────────────────────────────────────────────────
+const MOODS = [
+  {id:'off',           emoji:'❌', label:'Off'},
+  {id:'midnight-lofi', emoji:'🌙', label:'Midnight Lo-Fi',  color:'#7B2FFF'},
+  {id:'synthwave-lounge',emoji:'🌊',label:'Synthwave Lounge',color:'#FF4CD2'},
+  {id:'ambient-void',  emoji:'🌌', label:'Ambient Void',    color:'#00D4FF'},
+  {id:'raid-prep',     emoji:'⚔️', label:'Raid Prep',        color:'#FF4500'},
+  {id:'party-room',    emoji:'🎉', label:'Party Room',       color:'#FFD700'},
+  {id:'vgm-lounge',    emoji:'🎮', label:'VGM Lounge',       color:'#4ECDC4'},
+  {id:'metal-forge',   emoji:'🔥', label:'Metal Forge',      color:'#8B0000'},
+  {id:'chill-rnb',     emoji:'💜', label:'Chill R&B',        color:'#9B59B6'},
+];
+
+// ── INIT ───────────────────────────────────────────────────────────────
+(async function init() {
+  buildMoods();
+  // Discord Activity detection
+  const isActivity = new URLSearchParams(location.search).has('frame_id') || window.parent !== window;
+  if (isActivity && CLIENT_ID) {
+    await initActivity().catch(e => { console.warn('[Activity]', e); connectSSE(); });
+  } else {
+    el('userName').textContent = 'Web';
+    connectSSE();
+  }
+  el('guildTag').textContent = GUILD_ID ? `Guild ···${GUILD_ID.slice(-4)}` : 'No guild';
+})();
+
+// ── DISCORD ACTIVITY ───────────────────────────────────────────────────
+async function initActivity() {
+  const { DiscordSDK } = await import('https://cdn.jsdelivr.net/npm/@discord/embedded-app-sdk@1/dist/index.mjs');
+  const sdk = new DiscordSDK(CLIENT_ID);
+  await sdk.ready();
+  const { code } = await sdk.commands.authorize({ client_id:CLIENT_ID, response_type:'code', state:'', prompt:'none', scope:['identify'] });
+  const r = await fetch(`${API_URL}/activity/token`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code}) });
+  const { access_token } = await r.json();
+  const auth = await sdk.commands.authenticate({ access_token });
+  const u = auth.user;
+  el('userName').textContent = u.username || u.global_name || 'User';
+  if (u.avatar) { el('userAv').innerHTML = `<img src="https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.webp?size=32">`; }
+  dot('Bot', true); dot('Api', true);
+  connectSSE();
+}
+
+// ── SSE ────────────────────────────────────────────────────────────────
+function connectSSE() {
+  if (!GUILD_ID) { status('No GUILD_ID'); return; }
+  if (sseSource) sseSource.close();
+  sseSource = new EventSource(`${API_URL}/events/${GUILD_ID}`);
+  sseSource.onopen  = () => { dot('Sse', true); dot('Api', true); status('Live ✓'); setConn(true); };
+  sseSource.onerror = () => { dot('Sse', false); status('Reconnecting…'); setConn(false); setTimeout(connectSSE, 5000); };
+  sseSource.onmessage = e => {
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.type==='state') { state = {...state,...msg.data}; render(); }
+      if (msg.type==='tick')  { state.elapsed = msg.data.elapsed; updateProg(); }
+    } catch {}
+  };
+}
+
+// ── RENDER ─────────────────────────────────────────────────────────────
+function render() {
+  const c = state.current;
+  // Artwork
+  const art = el('npArt');
+  if (c?.thumbnail) {
+    let img = art.querySelector('img');
+    if (!img) { img = document.createElement('img'); art.appendChild(img); }
+    img.src = c.thumbnail; el('npArtIcon').style.display = 'none';
+    art.className = 'np-artwork' + (!state.paused ? ' playing' : '');
+  } else { art.querySelector('img')?.remove(); el('npArtIcon').style.display=''; art.className='np-artwork'; }
+  el('npTitle').textContent = c?.title || 'Nothing playing';
+  el('npSub').textContent   = c?.channel || (c ? 'Playing' : '—');
+  el('btnPlay').textContent = (state.paused || !c) ? '▶' : '⏸';
+  el('volSlider').value = state.volume ?? 80;
+  el('volVal').textContent = (state.volume ?? 80)+'%';
+  el('btnShuf').classList.toggle('active', !!state.shuffle);
+  updateProg();
+  renderQueue();
+  renderBadges();
+  renderStats();
+  renderMoodState();
+  el('rawState').textContent = JSON.stringify(state, null, 2);
+}
+
+function updateProg() {
+  const c = state.current;
+  if (!c) { el('progFill').style.width='0%'; return; }
+  const pct = c.duration > 0 ? Math.min(100, (state.elapsed||0)/c.duration*100) : 0;
+  el('progFill').style.width = pct+'%';
+  el('tEl').textContent  = fmt(state.elapsed||0);
+  el('tDur').textContent = fmt(c.duration||0);
+}
+
+function renderQueue() {
+  const q = state.queue || [], list = el('queueList');
+  el('qBadge').textContent = q.length;
+  el('qHint').textContent  = `${q.length} track${q.length!==1?'s':''}`;
+  if (!q.length) { list.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><p class="empty-p">Queue empty</p></div>'; return; }
+  list.innerHTML = q.map((t,i) => `
+    <div class="q-item${state.current?.url===t.url?' now':''} fi">
+      <span class="q-num">${i+1}</span>
+      <div class="q-thumb">${t.thumbnail?`<img src="${esc(t.thumbnail)}" loading="lazy">`:'🎵'}</div>
+      <div class="q-info"><div class="q-title">${esc(t.title||'?')}</div><div class="q-meta">${esc(t.requestedBy||'Auto')}</div></div>
+      <span class="q-dur">${fmt(t.duration||0)}</span>
+    </div>`).join('');
+}
+
+function renderBadges() {
+  const badges = [], s = state;
+  if (s.loop)      badges.push({t:'🔂 LOOP',    c:'mb-cyan'});
+  if (s.loopQueue) badges.push({t:'🔁 Q-LOOP',  c:'mb-cyan'});
+  if (s.shuffle)   badges.push({t:'🔀 SHUFFLE', c:'mb-vio'});
+  if (s.autoplay)  badges.push({t:'🤖 AUTO',    c:'mb-vio'});
+  if (s.paused)    badges.push({t:'⏸ PAUSED',  c:'mb-gold'});
+  if (s.eq&&s.eq!=='flat') badges.push({t:`🎛️ ${s.eq.toUpperCase()}`, c:'mb-mag'});
+  if (s.mood) { const m=MOODS.find(x=>x.id===s.mood); if(m) badges.push({t:`${m.emoji} ${m.label}`, c:'mb-mag'}); }
+  el('modeBadges').innerHTML = badges.map(b=>`<span class="mbadge ${b.c}">${b.t}</span>`).join('');
+}
+
+function renderStats() {
+  el('stQ').textContent = (state.queue||[]).length;
+  el('stH').textContent = (state.history||[]).length;
+  el('stV').textContent = (state.volume??80)+'%';
+  el('stM').textContent = state.mood ? MOODS.find(m=>m.id===state.mood)?.label||'—' : (state.autoplay?'Auto':'Manual');
+}
+
+function renderMoodState() {
+  document.querySelectorAll('.mood-btn').forEach(b => b.classList.toggle('active', b.dataset.mood===state.mood));
+}
+
+// ── SEARCH ─────────────────────────────────────────────────────────────
+async function doSearch() {
+  const q = el('searchIn').value.trim(); if (!q) return;
+  el('srList').innerHTML = '<div class="empty"><div class="ring"></div><p class="empty-p" style="margin-top:10px">Searching…</p></div>';
+  try {
+    const r = await fetch(`${API_URL}/search?q=${encodeURIComponent(q)}`);
+    const data = await r.json();
+    if (!data.results?.length) { el('srList').innerHTML='<div class="empty"><div class="empty-icon">🔇</div><p class="empty-p">No results</p></div>'; return; }
+    el('srList').innerHTML = data.results.map((t,i)=>`
+      <div class="sr-item fi" onclick="enqueue('${esc(t.url)}','${esc(t.title)}')">
+        <div class="sr-thumb">${t.thumbnail?`<img src="${esc(t.thumbnail)}" loading="lazy">`:'🎵'}</div>
+        <div class="sr-info"><div class="sr-title">${esc(t.title)}</div><div class="sr-ch">${esc(t.channel||'YouTube')}</div></div>
+        <span class="sr-dur">${fmt(t.durationInSec||0)}</span>
+        <div class="sr-add">+</div>
+      </div>`).join('');
+  } catch(e) { el('srList').innerHTML=`<div class="empty"><div class="empty-icon">❌</div><p class="empty-p">${e.message}</p></div>`; }
+}
+
+function enqueue(url, title) {
+  cmd('play', {url}); toast(`Queued: ${title.slice(0,40)}`);
+}
+
+function buildMoods() {
+  el('moodGrid').innerHTML = MOODS.map(m=>`
+    <button class="mood-btn" data-mood="${m.id}" onclick="cmd('room',{room:'${m.id}'})" ${m.color?`style="border-color:${m.color}22"`:''}>
+      <span class="mood-emoji">${m.emoji}</span>${m.label}
+    </button>`).join('');
+}
+
+// ── COMMANDS ──────────────────────────────────────────────────────────
+async function cmd(command, payload={}) {
+  if (!GUILD_ID) { toast('No guild ID', true); return; }
+  try {
+    await fetch(`${API_URL}/commands/${GUILD_ID}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({command,...payload}) });
+    dot('Api', true);
+  } catch { toast('Command failed', true); dot('Api', false); }
+}
+
+function togglePlay() { cmd(state.paused||!state.current ? 'resume' : 'pause'); }
+function cycleLoop()  {
+  const modes=['off','track','queue'], next=modes[(modes.indexOf(loopMode)+1)%modes.length];
+  loopMode=next; cmd('loop',{mode:next}); toast(`Loop: ${next}`);
+}
+
+// ── PANEL SWITCH ──────────────────────────────────────────────────────
+function switchPanel(id, btn) {
+  document.querySelectorAll('[data-panel]').forEach(p=>p.style.display='none');
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  const p=el(`pnl-${id}`); if(p){p.style.display='flex';} btn.classList.add('active'); activePanel=id;
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────
+function el(id) { return document.getElementById(id); }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmt(s) { const t=Math.floor(s||0),m=Math.floor(t/60),sec=t%60; return `${m}:${String(sec).padStart(2,'0')}`; }
+function status(msg) { el('sbMsg').textContent=msg; }
+function setConn(on) {
+  const d=el('connDot'),l=el('connLabel');
+  d.style.background = on ? 'var(--green)' : 'var(--red)';
+  d.style.boxShadow  = on ? '0 0 8px rgba(53,255,158,.7)' : '0 0 8px rgba(255,75,75,.6)';
+  l.textContent = on ? 'LIVE' : 'OFFLINE';
+}
+function dot(name, on) { const d=el('d'+name); if(d){ d.classList.toggle('on',on); } }
+function toast(msg, err=false) {
+  const w=el('toastWrap'), t=document.createElement('div');
+  t.className='toast'+(err?' err':''); t.textContent=msg; w.appendChild(t);
+  requestAnimationFrame(()=>{ t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>t.remove(),300); },2800); });
+}
+
+// Auto-progress locally between SSE ticks
+setInterval(() => { if (state.current && !state.paused) { state.elapsed=(state.elapsed||0)+1; updateProg(); } }, 1000);
+// Fallback poll
+setInterval(async () => {
+  if (!GUILD_ID) return;
+  try { const r=await fetch(`${API_URL}/state/${GUILD_ID}`); const d=await r.json(); if(!d.empty){state={...state,...d};render();} } catch {}
+}, 30_000);
+
+console.log('🎵 CONbot5 Launch Panel 2026 — Apple Liquid Glass Supreme');
+</script>
+</body>
+</html>
