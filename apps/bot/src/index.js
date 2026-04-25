@@ -118,6 +118,8 @@ const COMMANDS = [
   // Info
   new SlashCommandBuilder().setName('ping').setDescription('🏓 Bot latency and status'),
   new SlashCommandBuilder().setName('help').setDescription('📖 CONbot5 command reference'),
+  new SlashCommandBuilder().setName('diagnosevoice').setDescription('🔬 Voice + stream diagnostics — troubleshoot playback'),
+  new SlashCommandBuilder().setName('add').setDescription('➕ Add a song to queue (alias for /play)')\n    .addStringOption(o=>o.setName('query').setDescription('Song name or URL').setRequired(true)),
 ];
 
 // ── COMMAND REGISTRATION ───────────────────────────────────────────────
@@ -142,6 +144,18 @@ const playlists = new Map(); // `${guildId}:${name}` → track[]
 // ── INTERACTION HANDLER ────────────────────────────────────────────────
 bot.on(Events.InteractionCreate, async interaction => {
   try {
+
+    // Buttons — launchpad
+    if (interaction.isButton() && ['c5_launch_session','c5_launch_search','c5_launch_np','c5_launch_refresh'].includes(interaction.customId)) {
+      await interaction.deferUpdate().catch(()=>{});
+      await Engine.handleLaunchpadButton(interaction.customId, interaction, bot);
+      const state = Engine.getState(interaction.guildId);
+      if (interaction.customId === 'c5_launch_refresh' && state.launchpadMsgId && state.launchpadChId) {
+        const ch = bot.channels.cache.get(state.launchpadChId);
+        ch?.messages.fetch(state.launchpadMsgId).then(m=>m.edit({embeds:[Engine.buildLaunchpadEmbed(state,interaction.guild)],components:Engine.buildLaunchpadComponents(state)})).catch(()=>{});
+      }
+      return;
+    }
 
     // Buttons
     if (interaction.isButton() && Engine.isButton(interaction.customId)) {
@@ -375,9 +389,20 @@ bot.on(Events.InteractionCreate, async interaction => {
         .setFooter(FT)]});
     }
 
+    // ── DIAGNOSE VOICE ───────────────────────────────────────────────
+    if (cmd==='diagnosevoice') return await Engine.cmdDiagnoseVoice(interaction, bot);
+
+    // ── ADD (alias for play) ──────────────────────────────────────────
+    if (cmd==='add') {
+      interaction.options._hoistedOptions = interaction.options._hoistedOptions || [];
+      // Reuse cmdPlay — it reads options.getString('query')
+      return await Engine.cmdPlay(interaction, bot);
+    }
+
     // ── PING ──────────────────────────────────────────────────────────
     if (cmd==='ping') {
       const mem = process.memoryUsage();
+      const home = Engine.isHomeGuild(interaction.guildId);
       return interaction.editReply({embeds:[
         new EmbedBuilder().setColor(bot.ws.ping<100?C.green:bot.ws.ping<250?C.gold:C.red)
           .setTitle('🏓 CONbot5 System Status')
@@ -386,7 +411,8 @@ bot.on(Events.InteractionCreate, async interaction => {
             {name:'⏰ Uptime',        value:`${Math.floor(process.uptime()/3600)}h ${Math.floor((process.uptime()%3600)/60)}m`, inline:true},
             {name:'💾 Memory',        value:`${Math.round(mem.heapUsed/1024/1024)}MB`, inline:true},
             {name:'🔊 Active Queues', value:`${[...Engine.permanentRooms.values()].length} rooms`, inline:true},
-            {name:'🎵 Engine',        value:'CONbot5 Supreme v5.0', inline:true},
+            {name:'🎵 Engine',        value:'CONbot5 Supreme v6.0', inline:true},
+            {name:'✨ Guild Tier',    value: home ? '🌈 Home Guild — Fully Unlocked' : 'Standard', inline:true},
           ).setFooter(FT).setTimestamp(),
       ]});
     }
@@ -396,13 +422,13 @@ bot.on(Events.InteractionCreate, async interaction => {
       return interaction.editReply({embeds:[
         new EmbedBuilder().setColor(C.vio).setTitle('📖 CONbot5 Supreme — Command Reference')
           .addFields(
-            {name:'▶️ Playback', value:'`/play` `/search` `/skip` `/stop` `/pause` `/resume` `/np`', inline:false},
+            {name:'▶️ Playback', value:'`/play` `/add` `/search` `/skip` `/stop` `/pause` `/resume` `/np`', inline:false},
             {name:'📋 Queue',    value:'`/queue` `/history` `/clear` `/remove` `/move`', inline:false},
             {name:'🎛️ Controls', value:'`/volume` `/loop` `/shuffle` `/autoplay` `/eq` `/seek`', inline:false},
             {name:'🎸 Discovery',value:'`/browse` `/room`', inline:false},
             {name:'🖥️ Dashboard', value:'`/dashboard` `/launchpad`', inline:false},
             {name:'📂 Playlists', value:'`/save` `/load` `/playlists`', inline:false},
-            {name:'🎤 Extras',   value:'`/lyrics` `/ping` `/help`', inline:false},
+            {name:'🎤 Extras',   value:'`/lyrics` `/ping` `/help` `/diagnosevoice`', inline:false},
           )
           .setDescription('> *CONbot5 Supreme — All sources. No limits. Infinite audio.*')
           .setFooter(FT),
