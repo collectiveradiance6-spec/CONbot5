@@ -165,7 +165,7 @@ bot.on(Events.InteractionCreate, async interaction => {
     if (cmd==='search') {
       const q = interaction.options.getString('query');
       const results = await Engine.searchMultiple(q, 8);
-      if (!results.length) return interaction.editReply('⚠️ No results found.');
+      if (!results.length) return interaction.editReply('⚠️ No results found. Try a direct YouTube URL, or the `YOUTUBE_COOKIE` env var may need refreshing.');
       const select = new StringSelectMenuBuilder().setCustomId('c5_search_pick')
         .setPlaceholder('🎵 Select a track...')
         .addOptions(results.slice(0,8).map((r,i)=>({

@@ -167,6 +167,8 @@ async function resolveTrack(query) {
   try {
     const isUrl = /^https?:\/\//.test(query);
     if (isUrl) {
+      // Normalize before any playdl call — prevents "Invalid URL" from youtu.be or malformed params
+      const normalized = normalizeYouTubeUrl(query) || query;
       if (query.includes('spotify.com')) {
         const sp = await playdl.spotify(query).catch(()=>null);
         if (!sp) return null;
@@ -181,16 +183,16 @@ async function resolveTrack(query) {
         return null;
       }
       if (query.includes('soundcloud.com')) {
-        const sc = await playdl.soundcloud(query);
-        return { title:sc.name, url:query, duration:sc.durationInSec||0, thumbnail:sc.thumbnail||null, source:'soundcloud', addedAt:Date.now() };
+        const sc = await playdl.soundcloud(normalized);
+        return { title:sc.name, url:normalized, duration:sc.durationInSec||0, thumbnail:sc.thumbnail||null, source:'soundcloud', addedAt:Date.now() };
       }
       if (query.includes('list=')) {
-        const pl = await playdl.playlist_info(query, {incomplete:true}).catch(()=>null);
+        const pl = await playdl.playlist_info(normalized, {incomplete:true}).catch(()=>null);
         if (pl) { const v = await pl.all_videos(); return v.slice(0,100).map(r=>mkTrack(r)).filter(Boolean); }
       }
-      const info = await playdl.video_info(query);
+      const info = await playdl.video_info(normalized);
       const d = info.video_details;
-      return mkTrack(d, query, 'youtube');
+      return mkTrack(d, normalized, 'youtube');
     }
     const res = await playdl.search(query, {source:{youtube:'video'}, limit:1});
     return res[0] ? mkTrack(res[0]) : null;
@@ -198,13 +200,55 @@ async function resolveTrack(query) {
 }
 
 async function searchMultiple(q, limit=SEARCH_LIMIT) {
-  try { return await playdl.search(q, {source:{youtube:'video'}, limit}); } catch { return []; }
+  try {
+    const res = await playdl.search(q, {source:{youtube:'video'}, limit});
+    // Normalize all result URLs so stream() gets valid watch URLs
+    for (const r of res) {
+      if (r.url) r.url = normalizeYouTubeUrl(r.url) || r.url;
+    }
+    return res;
+  } catch (e) {
+    console.error('[Engine] searchMultiple:', e.message);
+    // Likely YouTube token issue — log actionable hint
+    if (e.message?.toLowerCase().includes('sign in') || e.message?.toLowerCase().includes('token') || e.message?.toLowerCase().includes('cookie')) {
+      console.warn('[Engine] ⚠️  Set YOUTUBE_COOKIE env var to fix search failures. See https://github.com/play-dl/play-dl#setup');
+    }
+    return [];
+  }
+}
+
+function normalizeYouTubeUrl(url) {
+  if (!url) return null;
+  // youtu.be/ID → full watch URL
+  const short = url.match(/youtu\.be\/([A-Za-z0-9_-]{11})/);
+  if (short) return `https://www.youtube.com/watch?v=${short[1]}`;
+  // Already a watch URL — strip extra params that confuse playdl
+  const watch = url.match(/[?&]v=([A-Za-z0-9_-]{11})/);
+  if (watch) return `https://www.youtube.com/watch?v=${watch[1]}`;
+  // SoundCloud / direct — return as-is
+  return url;
 }
 
 async function getStream(track) {
+  const canonical = normalizeYouTubeUrl(track.url);
+  if (!canonical || !canonical.startsWith('http')) throw new Error('Invalid URL');
+
   const opts = { quality:2, precache:3, discordPlayerCompatibility:true };
-  try { return await playdl.stream(track.url, opts); }
-  catch { return await playdl.stream(track.url, {...opts, quality:1}); }
+  // Primary attempt with quality:2
+  try { return await playdl.stream(canonical, opts); } catch (e1) {
+    // quality fallback
+    try { return await playdl.stream(canonical, {...opts, quality:1}); } catch (e2) {
+      // If playdl.video_info can resolve a canonical yt URL, use it
+      if (canonical.includes('youtube.com/watch')) {
+        try {
+          const info = await playdl.video_info(canonical);
+          const trueUrl = info?.video_details?.url;
+          if (trueUrl && trueUrl !== canonical) return await playdl.stream(trueUrl, {...opts, quality:1});
+        } catch {}
+      }
+      throw e2;
+    }
+  }
 }
 
 // ── MOOD BUFFER ────────────────────────────────────────────────────────
@@ -576,7 +620,7 @@ async function cmdPlay(i, client) {
 
   await i.editReply(`🔍 Searching: \`${query.slice(0,80)}\`...`);
   const results = await searchMultiple(query, SEARCH_LIMIT);
-  if (!results.length) return i.editReply('⚠️ No results found.');
+  if (!results.length) return i.editReply('⚠️ No results found. If this keeps happening, the `YOUTUBE_COOKIE` env var may need refreshing — or try a direct YouTube URL.');
 
   const select = new StringSelectMenuBuilder().setCustomId('c5_search_pick')
     .setPlaceholder(`🎵 Pick from ${results.length} results...`)
@@ -703,11 +747,15 @@ async function handleSelect(i, client) {
     const track=await resolveTrack(value);
     if (!track||Array.isArray(track)) return;
     track.requestedBy=i.user.username;
+    const wasPlaying = !!state.current && state.player?.state?.status===AudioPlayerStatus.Playing;
     if (state.queue.length<MAX_QUEUE) state.queue.push(track);
+    // Capture position BEFORE playNext() may shift() this track out of the queue
+    const qPos = state.queue.length;
     const vc=i.member?.voice?.channel; if (vc) await ensureVC(state,vc,client);
-    if (!state.current||state.player?.state?.status!==AudioPlayerStatus.Playing) await playNext(state,client);
+    if (!wasPlaying) await playNext(state,client);
     else await updateDashboard(state,client);
-    try { await i.followUp({content:`✅ **${track.title.slice(0,80)}** added at position #${state.queue.length}`,ephemeral:true}); } catch {}
+    const posLabel = wasPlaying ? `#${qPos}` : '▶️ Now Playing';
+    try { await i.followUp({content:`✅ **${track.title.slice(0,80)}** added at position ${posLabel}`,ephemeral:true}); } catch {}
     return;
   }
 
