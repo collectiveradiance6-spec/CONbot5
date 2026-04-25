@@ -4,13 +4,17 @@
   "private": true,
   "description": "CONbot5 — Supreme Music Intelligence Platform. Surpasses Rythm.",
   "scripts": {
-    "dev": "concurrently \"npm run dev -w services/api\" \"npm run dev -w services/ws\" \"npm run dev -w apps/bot\" \"npm run dev -w apps/web\"",
+    "dev": "concurrently \"cd services/api && npm run dev\" \"cd services/ws && npm run dev\" \"cd apps/bot && npm run dev\" \"cd apps/web && npm run dev\"",
+    "dev:api": "cd services/api && npm run dev",
+    "dev:ws": "cd services/ws && npm run dev",
+    "dev:bot": "cd apps/bot && npm run dev",
+    "dev:web": "cd apps/web && npm run dev",
     "build:web": "cd apps/web && npm run build",
-    "start:bot": "node apps/bot/src/index.js",
-    "start:api": "node services/api/src/index.js",
-    "start:ws": "node services/ws/src/index.js",
-    "start:desktop": "electron apps/desktop/main.js",
-    "install:all": "npm install"
+    "start:bot": "cd apps/bot && node src/index.js",
+    "start:api": "cd services/api && node src/index.js",
+    "start:ws": "cd services/ws && node src/index.js",
+    "start:desktop": "cd apps/desktop && npm run dev",
+    "install:all": "npm install && cd services/api && npm install && cd ../../services/ws && npm install && cd ../../apps/bot && npm install && cd ../web && npm install"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
