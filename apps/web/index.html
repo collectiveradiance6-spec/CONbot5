@@ -326,6 +326,22 @@ body::after{
 /* ── TOOLTIP ──────────────────────────────── */
 [data-tip]{position:relative;}
 [data-tip]:hover::before{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:rgba(8,12,20,.9);border:1px solid var(--border);color:var(--text);font-size:11px;padding:4px 10px;border-radius:6px;white-space:nowrap;pointer-events:none;z-index:200;}
+
+/* ═══ FLOATING CONbot5 LOGO SYSTEM ═══ */
+.logo-orb-wrap{position:relative;width:38px;height:38px;flex-shrink:0}
+.logo-orb-wrap::before{content:"";position:absolute;inset:-3px;border-radius:50%;background:conic-gradient(from 0deg,#56D9FF,#FF6ADF,#8B72FF,#FFCE69,#B6FF3B,#56D9FF);animation:c5spin 6s linear infinite;opacity:.65}
+.logo-orb-wrap::after{content:"";position:absolute;inset:2px;border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.32),rgba(86,217,255,.14) 50%,transparent);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.28);box-shadow:0 4px 20px rgba(86,217,255,.28),inset 0 1px 0 rgba(255,255,255,.35)}
+.logo-img-sm{width:26px;height:26px;object-fit:contain;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2;filter:drop-shadow(0 0 6px rgba(86,217,255,.7)) drop-shadow(0 0 14px rgba(255,106,223,.4));animation:c5float 7s ease-in-out infinite}
+/* Large orb for NP card */
+.logo-orb-lg{position:relative;width:88px;height:88px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 10px}
+.logo-orb-lg::before{content:"";position:absolute;inset:-4px;border-radius:50%;background:conic-gradient(from 0deg,#56D9FF,#FF6ADF,#8B72FF,#FFCE69,#B6FF3B,#56D9FF);animation:c5spin 6s linear infinite;opacity:.6}
+.logo-orb-lg::after{content:"";position:absolute;inset:2px;border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.28),rgba(86,217,255,.12) 40%,rgba(139,114,255,.08) 70%,transparent);backdrop-filter:blur(20px) saturate(200%);border:1px solid rgba(255,255,255,.25);box-shadow:0 8px 32px rgba(86,217,255,.22),0 0 60px rgba(255,106,223,.12),inset 0 1px 0 rgba(255,255,255,.35)}
+.logo-img-lg{width:68px;height:68px;object-fit:contain;position:relative;z-index:2;filter:drop-shadow(0 0 10px rgba(86,217,255,.7)) drop-shadow(0 0 24px rgba(255,106,223,.45)) drop-shadow(0 0 48px rgba(139,114,255,.25));animation:c5float 7s ease-in-out infinite}
+.logo-name-rb{font-family:"Clash Display","Cinzel",serif;font-size:18px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;background:linear-gradient(90deg,#56D9FF,#8B72FF,#FF6ADF,#FF9F3B,#B6FF3B,#56D9FF);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:rail-flow 5s linear infinite}
+.logo-sub-rb{font-family:var(--font-mono);font-size:9px;color:var(--muted);letter-spacing:.18em;text-transform:uppercase;margin-top:3px;text-align:center}
+@keyframes c5spin{to{transform:rotate(360deg)}}
+@keyframes c5float{0%,100%{transform:translateY(0) scale(1)}25%{transform:translateY(-4px) scale(1.008)}50%{transform:translateY(-7px) scale(1.012)}75%{transform:translateY(-3px) scale(1.006)}}
+body.rm .logo-img-sm,body.rm .logo-img-lg,body.rm .logo-orb-wrap::before,body.rm .logo-orb-lg::before{animation:none!important}
 </style>
 </head>
 <body>
@@ -336,7 +352,7 @@ body::after{
   <!-- HEADER -->
   <header class="header glass" style="border-radius:0;margin-bottom:0;z-index:50;">
     <div class="logo">
-      <div class="logo-mark">🎵</div>
+      <div class="logo-orb-wrap"><img class="logo-img-sm" src="https://cdn.discordapp.com/attachments/1439358672970060029/1497097504611635220/CONBOT5-e.png" alt="CONbot5" crossorigin="anonymous"/></div>
       <div>
         <div class="logo-name">CONbot5</div>
         <div class="logo-ver">SUPREME v5.0 · MUSIC INTELLIGENCE</div>
@@ -359,6 +375,13 @@ body::after{
     <!-- LEFT: NOW PLAYING -->
     <div class="col-left">
       <div class="glass now-playing-card lift" id="npCard">
+
+      <!-- Floating CONbot5 logo — glass orb + rainbow soul -->
+      <div style="text-align:center;margin-bottom:16px;">
+        <div class="logo-orb-lg"><img class="logo-img-lg" src="https://cdn.discordapp.com/attachments/1439358672970060029/1497097504611635220/CONBOT5-e.png" alt="CONbot5" crossorigin="anonymous"/></div>
+        <div class="logo-name-rb">CONbot5</div>
+        <div class="logo-sub-rb">SUPREME MUSIC INTELLIGENCE</div>
+      </div>
         <div class="album-wrap" id="albumWrap">
           <img class="album-art" id="albumArt" src="" alt="Album art" style="display:none;"/>
           <div class="album-idle" id="albumIdle">◈</div>
@@ -508,6 +531,7 @@ body::after{
 <!-- TOAST CONTAINER -->
 <div class="toast-wrap" id="toastWrap"></div>
 
+<script src="public/bg-engine.js" defer></script>
 <script>
 // ═══════════════════════════════════════════════════════════════════════
 // CONbot5 Web Dashboard — Supreme Control Surface
@@ -892,7 +916,21 @@ setInterval(()=>{
 // Show connection status
 setTimeout(()=>{ if (!sse || sse.readyState===2) { setStatus('OFFLINE',false); pollState(); } }, 3000);
 
-console.log('🎵 CONbot5 Supreme Dashboard v5.0');
+console.log('🎵 CONbot5 Supreme v5.1 — Floating Logo + WebGL BG');
+
+// ── BG ENGINE ───────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  const c = document.getElementById('bgCanvas');
+  if (!c && !document.querySelector('canvas')) {
+    const cv = document.createElement('canvas');
+    cv.id = 'bgCanvas';
+    document.body.insertBefore(cv, document.body.firstChild);
+    if (window.CONbotBG) CONbotBG.init(cv);
+  } else if (window.CONbotBG && c) {
+    CONbotBG.init(c);
+  }
+});
+
 </script>
 </body>
 </html>

@@ -455,6 +455,20 @@ html, body {
 /* Fade in */
 .fi { animation: fi .3s ease; }
 @keyframes fi { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+/* ═══ CONbot5 FLOATING LOGO ═══ */
+.brand-orb-wrap{position:relative;width:34px;height:34px;border-radius:50%;flex-shrink:0}
+.brand-orb-wrap::before{content:"";position:absolute;inset:-2px;border-radius:50%;background:conic-gradient(from 0deg,#56D9FF,#FF6ADF,#8B72FF,#FFCE69,#56D9FF);animation:ospn 6s linear infinite;opacity:.6}
+.brand-orb-wrap::after{content:"";position:absolute;inset:2px;border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.30),rgba(86,217,255,.12) 50%,transparent);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.25);box-shadow:0 4px 16px rgba(86,217,255,.25),inset 0 1px 0 rgba(255,255,255,.35)}
+.brand-logo-img{width:24px;height:24px;object-fit:contain;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2;filter:drop-shadow(0 0 6px rgba(86,217,255,.7)) drop-shadow(0 0 12px rgba(255,106,223,.4));animation:c5float 7s ease-in-out infinite}
+/* NP artwork logo */
+.np-logo-orb{position:relative;width:72px;height:72px;border-radius:50%;margin:0 auto 8px;display:flex;align-items:center;justify-content:center}
+.np-logo-orb::before{content:"";position:absolute;inset:-3px;border-radius:50%;background:conic-gradient(from 0deg,#56D9FF,#FF6ADF,#8B72FF,#FFCE69,#B6FF3B,#56D9FF);animation:ospn 6s linear infinite;opacity:.6}
+.np-logo-orb::after{content:"";position:absolute;inset:2px;border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.28),rgba(86,217,255,.12) 40%,transparent);backdrop-filter:blur(20px) saturate(200%);border:1px solid rgba(255,255,255,.25);box-shadow:0 6px 24px rgba(86,217,255,.2),0 0 40px rgba(255,106,223,.1),inset 0 1px 0 rgba(255,255,255,.35)}
+.np-logo-img{width:56px;height:56px;object-fit:contain;position:relative;z-index:2;filter:drop-shadow(0 0 8px rgba(86,217,255,.7)) drop-shadow(0 0 18px rgba(255,106,223,.4));animation:c5float 7s ease-in-out infinite}
+.logo-name-rb{background:linear-gradient(90deg,#56D9FF,#8B72FF,#FF6ADF,#FF9F3B,#56D9FF);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:rail 5s linear infinite}
+@keyframes ospn{to{transform:rotate(360deg)}}
+@keyframes c5float{0%,100%{transform:translateY(0) scale(1)}25%{transform:translateY(-4px) scale(1.01)}50%{transform:translateY(-6px) scale(1.015)}75%{transform:translateY(-2px) scale(1.005)}}
 </style>
 </head>
 <body>
@@ -467,7 +481,7 @@ html, body {
   <!-- TOPBAR -->
   <header class="glass topbar">
     <div class="brand">
-      <div class="brand-orb">🎵</div>
+      <div class="brand-orb-wrap"><img class="brand-logo-img" src="https://cdn.discordapp.com/attachments/1439358672970060029/1497097504611635220/CONBOT5-e.png" alt="CONbot5" crossorigin="anonymous"/></div>
       <div>
         <div class="brand-name">CONbot5</div>
         <div class="brand-ver">SUPREME v5.0 · MUSIC INTELLIGENCE</div>
@@ -494,6 +508,12 @@ html, body {
 
       <!-- Now Playing -->
       <div class="glass np-card">
+
+      <!-- Floating logo shown when idle -->
+      <div id="npLogoOrb" class="np-logo-orb" style="margin-bottom:6px;">
+        <img class="np-logo-img" src="https://cdn.discordapp.com/attachments/1439358672970060029/1497097504611635220/CONBOT5-e.png" alt="CONbot5" crossorigin="anonymous"/>
+      </div>
+      <div class="logo-name-rb" style="font-family:var(--fd);font-size:14px;font-weight:700;letter-spacing:.1em;text-align:center;margin-bottom:10px;">CONbot5</div>
         <div class="np-artwork" id="npArt">
           <span id="npArtIcon">🎵</span>
         </div>
@@ -690,7 +710,8 @@ function render() {
     img.src = c.thumbnail; el('npArtIcon').style.display = 'none';
     art.className = 'np-artwork' + (!state.paused ? ' playing' : '');
   } else { art.querySelector('img')?.remove(); el('npArtIcon').style.display=''; art.className='np-artwork'; }
-  el('npTitle').textContent = c?.title || 'Nothing playing';
+  el('npLogoOrb').style.display = c?.thumbnail ? 'none' : '';
+    el('npTitle').textContent = c?.title || 'Nothing playing';
   el('npSub').textContent   = c?.channel || (c ? 'Playing' : '—');
   el('btnPlay').textContent = (state.paused || !c) ? '▶' : '⏸';
   el('volSlider').value = state.volume ?? 80;

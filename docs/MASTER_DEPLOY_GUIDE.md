@@ -82,10 +82,10 @@ DISCORD_CLIENT_ID       = [from Dev Portal → General Info → App ID]
 DISCORD_GUILD_ID        = 1438103556610723922
 DJ_ROLE_ID              = [optional — role snowflake, blank = everyone]
 API_URL                 = https://conbot5-api.onrender.com  ← set after API deploys
-API_BOT_TOKEN           = [your generated secret]
-YOUTUBE_COOKIE          = [optional but strongly recommended]
-SPOTIFY_CLIENT_ID       = [optional]
-SPOTIFY_CLIENT_SECRET   = [optional]
+API_BOT_TOKEN           = 
+YOUTUBE_COOKIE          = 
+SPOTIFY_CLIENT_ID       = 
+SPOTIFY_CLIENT_SECRET   = 
 PULSE_INTERVAL          = 25000
 RECONNECT_DELAY         = 5000
 ```
@@ -209,7 +209,7 @@ Or open `apps/web/index.html` locally with the same ?guild= param for testing.
      - View Channels, Send Messages, Embed Links, Attach Files
      - Manage Messages, Read Message History
      - Connect, Speak, Use Voice Activity
-     - Manage Channels (for monitor setup)
+     - Manage Channels (]for monitor setup)
      - Manage Roles, Ban Members, Moderate Members
      - Add Reactions
    - Copy invite URL → paste in browser → invite to your server

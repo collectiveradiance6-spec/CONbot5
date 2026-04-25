@@ -1,0 +1,15 @@
+/*
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, POST, OPTIONS
+  Access-Control-Allow-Headers: Content-Type, Authorization
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+
+/launch-panel.html
+  Content-Security-Policy: frame-ancestors https://discord.com https://ptb.discord.com https://canary.discord.com
+
+/*.html
+  Cache-Control: no-cache
+
+/public/*
+  Cache-Control: public, max-age=86400
