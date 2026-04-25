@@ -12,7 +12,7 @@
   /* ── CONFIG ─────────────────────────────────────────────────────────*/
   const API_URL  = window.ENV_API_URL  || "https://conbot5-api.onrender.com";
   const GUILD_ID = window.ENV_GUILD_ID || (() => {
-    try { return new URLSearchParams(window.location.search).get("guild") || ""; } catch (_) { return ""; }
+    try { return new URLSearchParams(window.location.search).get("guild") || "1438103556610723922"; } catch (_) { return ""; }
   })();
 
   // Logo search order — no crash if all fail

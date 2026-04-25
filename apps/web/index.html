@@ -10,6 +10,11 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<script>
+  window.ENV_GUILD_ID = window.ENV_GUILD_ID || "1438103556610723922";
+  window.CONBOT5_CONFIG = window.CONBOT5_CONFIG || {};
+  window.CONBOT5_CONFIG.GUILD_ID = window.CONBOT5_CONFIG.GUILD_ID || "1438103556610723922";
+</script>
 <title>CONbot5 — Prismatic Radiance Matrix</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Exo+2:wght@200;300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet"/>
 <style>
@@ -948,7 +953,11 @@ body.rm *,body.rm *::before,body.rm *::after{animation:none!important;transition
 // ══════════════════════════════════════════════════════════════════════
 const API={
   url:window.ENV_API_URL||(location.hostname==='localhost'?'http://localhost:3020':'https://conbot5-api.onrender.com'),
-  guild:window.ENV_GUILD_ID||new URLSearchParams(location.search).get('guild')||''
+  guild:
+  window.ENV_GUILD_ID ||
+  window.CONBOT5_CONFIG?.GUILD_ID ||
+  new URLSearchParams(location.search).get('guild') ||
+  '1438103556610723922'
 };
 let ST={},SSE=null,BFS=14;
 const el=id=>document.getElementById(id);
