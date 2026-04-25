@@ -1017,6 +1017,171 @@ function buildSearchEmbed(results, query) {
     .setTimestamp();
 }
 
+function buildAudioLabEmbed(state) {
+  const eq = EQ[state?.eq] || EQ.flat;
+  const home = typeof isHomeGuild === "function" ? isHomeGuild(state?.guildId) : false;
+
+  return new EmbedBuilder()
+    .setColor(0x56D9FF)
+    .setTitle("🎛️ CONbot5 Audio Lab")
+    .setDescription(
+      [
+        "**Live audio controls for the current session.**",
+        "",
+        home
+          ? "🌈 Dominion Home Guild: fully unlocked."
+          : "Standard mode: advanced DSP features are scaffolded."
+      ].join("\n")
+    )
+    .addFields(
+      {
+        name: "🔊 Volume",
+        value: `${state?.volume ?? 80}%`,
+        inline: true
+      },
+      {
+        name: "🎚️ Current EQ",
+        value: eq?.label || state?.eq || "Flat",
+        inline: true
+      },
+      {
+        name: "🎵 Playback",
+        value: state?.current ? "Active" : "Idle",
+        inline: true
+      },
+      {
+        name: "✅ Live Controls",
+        value: "`Volume` · `EQ Presets` · `Reset EQ`",
+        inline: false
+      },
+      {
+        name: "🧪 Coming Online",
+        value:
+          "`10-Band EQ` · `Limiter` · `Normalization` · `Crossfade` · `Spatial Width`",
+        inline: false
+      }
+    )
+    .setFooter(FT)
+    .setTimestamp();
+}
+
+function buildAudioLabComponents(state) {
+  const row1 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("c5_vol_down")
+      .setLabel("Vol -")
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId("c5_vol_up")
+      .setLabel("Vol +")
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId("c5_eq_flat")
+      .setLabel("Flat")
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId("c5_eq_bassboost")
+      .setLabel("Bass Boost")
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId("c5_np_refresh")
+      .setLabel("Refresh")
+      .setStyle(ButtonStyle.Secondary)
+  );
+
+  const preset = new StringSelectMenuBuilder()
+    .setCustomId("c5_audio_preset")
+    .setPlaceholder("Choose Audio Lab preset")
+    .addOptions([
+      { label: "Flat", value: "flat", description: "Neutral CONbot5 output" },
+      { label: "Bass Boost", value: "bassboost", description: "More low-end weight" },
+      { label: "Nightcore", value: "nightcore", description: "Bright, fast, energetic" },
+      { label: "Vaporwave", value: "vaporwave", description: "Soft slowed resonance" },
+      { label: "Earrape", value: "earrape", description: "Extreme gain warning" }
+    ]);
+
+  const row2 = new ActionRowBuilder().addComponents(preset);
+
+  return [row1, row2];
+}
+
+function buildSessionEmbed(state, guild) {
+  return new EmbedBuilder()
+    .setColor(0x8B72FF)
+    .setTitle("👥 CONbot5 Session")
+    .setDescription("Social listening control center.")
+    .addFields(
+      { name: "Guild", value: guild?.name || state?.guildId || "Unknown", inline: true },
+      { name: "Voice", value: state?.voiceChannelId || "Not connected", inline: true },
+      { name: "Queue", value: String(state?.queue?.length || 0), inline: true },
+      { name: "Now Playing", value: state?.current?.title || "Nothing", inline: false }
+    )
+    .setFooter(FT)
+    .setTimestamp();
+}
+
+function buildSessionComponents(state) {
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId("c5_launch_session")
+        .setLabel("Start / Join")
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId("c5_np_refresh")
+        .setLabel("Refresh")
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId("c5_open_queue")
+        .setLabel("Queue")
+        .setStyle(ButtonStyle.Secondary)
+    )
+  ];
+}
+
+function buildSmartMixEmbed(state) {
+  return new EmbedBuilder()
+    .setColor(0xFF6ADF)
+    .setTitle("🤖 CONbot5 Smart Mix")
+    .setDescription("Mood, genre, and session-aware queue intelligence.")
+    .addFields(
+      { name: "Current Mood", value: state?.mood || "Manual", inline: true },
+      { name: "Autoplay", value: state?.autoplay ? "On" : "Off", inline: true },
+      { name: "Queue", value: String(state?.queue?.length || 0), inline: true },
+      {
+        name: "Available",
+        value: "`Mood Rooms` · `Autoplay` · `Genre Browser`",
+        inline: false
+      },
+      {
+        name: "Coming Online",
+        value: "`Generate Next 10` · `Queue Balance` · `Repair Unavailable`",
+        inline: false
+      }
+    )
+    .setFooter(FT)
+    .setTimestamp();
+}
+
+function buildSmartMixComponents(state) {
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId("c5_toggle_autoplay")
+        .setLabel("Toggle Autoplay")
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId("c5_open_browse")
+        .setLabel("Browse Genres")
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId("c5_np_refresh")
+        .setLabel("Refresh")
+        .setStyle(ButtonStyle.Secondary)
+    )
+  ];
+}
+
 module.exports = {
 buildSearchEmbed,
   getState, ensureVC, playNext, resolveTrack, searchMultiple,
@@ -1024,7 +1189,8 @@ buildSearchEmbed,
   handleButton, handleSelect, handleLaunchpadButton,
   buildNowPlayingEmbed, buildControlPanel, buildDashboardComponents,
   buildLaunchpadEmbed, buildLaunchpadComponents,
-  buildQueueEmbed, buildHistoryEmbed, buildGenreEmbed, buildGenreComponents,
+  buildQueueEmbed, buildHistoryEmbed, buildGenreEmbed, buildGenreComponents, buildAudioLabEmbed, buildAudioLabComponents, buildSessionEmbed, buildSessionComponents, buildSmartMixEmbed,
+buildSmartMixComponents,
   updateDashboard, postNowPlaying, mkTrack, fmtTime, progBar,
   GENRES, MOODS, EQ, FT, permanentRooms,
   hasPremiumAccess, isHomeGuild,
