@@ -3,25 +3,29 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' http://localhost:* https://fonts.googleapis.com https://fonts.gstatic.com https://cdn.discordapp.com https://media.discordapp.net data: blob:; img-src * data: blob:; font-src *; connect-src *;"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' http://localhost:* data: blob:; img-src * data: blob:; font-src *; connect-src *;"/>
 <title>CONbot5 Supreme</title>
+<!-- Load full web dashboard from parent directory -->
 <script>
-// Inject API config from Electron main process
+// Redirect to web dashboard with Electron context
 window.ENV_API_URL  = 'http://localhost:3020';
 window.ENV_GUILD_ID = '';
+
+// Bridge Electron IPC to web dashboard commands
 if (window.CONbot5) {
-  window.CONbot5.getConfig().then(cfg => {
-    window.ENV_API_URL  = cfg.API_URL  || 'http://localhost:3020';
-    window.ENV_GUILD_ID = cfg.GUILD_ID || '';
-    // Redirect to web dashboard with config injected
-    window.location.replace('../index.html');
+  window.addEventListener('DOMContentLoaded', ()=>{
+    window.CONbot5.getConfig().then(cfg=>{
+      window.ENV_GUILD_ID = cfg.GUILD_ID;
+      window.ENV_API_URL  = cfg.API_URL;
+    });
   });
-} else {
-  window.location.replace('../index.html');
 }
 </script>
 </head>
-<body style="background:#03040a;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
-<div style="color:rgba(86,217,255,.8);font-family:monospace;font-size:12px;letter-spacing:.1em;">LOADING CONbot5…</div>
+<body>
+<script>
+// Load the web dashboard
+window.location.href = '../index.html';
+</script>
 </body>
 </html>

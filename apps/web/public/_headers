@@ -1,19 +1,15 @@
-# CONbot5 — Cloudflare Pages: _headers
-
 /*
-  X-Frame-Options: ALLOWALL
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, POST, OPTIONS
+  Access-Control-Allow-Headers: Content-Type, Authorization
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
-  Permissions-Policy: camera=(), microphone=(), geolocation=()
 
 /launch-panel.html
-  X-Frame-Options: ALLOWALL
-  Content-Security-Policy: frame-ancestors https://discord.com https://ptb.discord.com https://canary.discord.com https://*.discordsays.com
+  Content-Security-Policy: frame-ancestors https://discord.com https://ptb.discord.com https://canary.discord.com
 
-/api/*
-  Access-Control-Allow-Origin: *
-  Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
-  Access-Control-Allow-Headers: Content-Type, Authorization, X-Bot-Token
+/*.html
+  Cache-Control: no-cache
 
 /public/*
   Cache-Control: public, max-age=86400
