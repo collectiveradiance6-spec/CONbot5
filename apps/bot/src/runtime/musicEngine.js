@@ -37,6 +37,17 @@ try {
 } catch {}
 
 // ── BOT GATE DETECTION ─────────────────────────────────────────────────
+function isValidHttpUrl(value) {
+  if (typeof value !== "string") return false;
+
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 function isBotGate(err) {
   const m = String(err?.message || err || '');
   return /sign in to confirm/i.test(m) || /not a bot/i.test(m) || /while getting info/i.test(m);
@@ -172,10 +183,23 @@ async function resolveTrack(query) {
       if (query.includes('spotify.com')) {
         const sp = await playdl.spotify(query).catch(()=>null);
         if (!sp) return null;
-        if (sp.type==='track') {
-          const yt = await playdl.search(`${sp.name} ${sp.artists?.[0]?.name||''}`, { source:{youtube:'video'}, limit:1 });
-          return yt[0] ? mkTrack(yt[0], query, 'spotify', sp.thumbnail?.url) : null;
-        }
+        if (sp.type === "track") {
+  const yt = await playdl.search(`${sp.name} ${sp.artists?.[0]?.name || ""}`, {
+    source: { youtube: "video" },
+    limit: 1,
+  });
+
+  if (!yt[0]) return null;
+
+  const mapped = mkTrack(yt[0], yt[0].url, "youtube", sp.thumbnail?.url);
+  if (mapped) {
+    mapped.spotifyUrl = query;
+    mapped.source = "spotify→youtube";
+    mapped.title = `${sp.name} — ${sp.artists?.[0]?.name || "Spotify"}`;
+  }
+
+  return mapped;
+}
         if (sp.type==='playlist'||sp.type==='album') {
           const all = await sp.all_tracks();
           return all.slice(0,100).map(t => mkTrack({title:`${t.name} — ${t.artists?.[0]?.name||''}`, url:t.url, durationInSec:t.durationInSec||0, thumbnails:[{url:t.thumbnail?.url}]}, t.url, 'spotify'));
@@ -230,22 +254,33 @@ function normalizeYouTubeUrl(url) {
 }
 
 async function getStream(track) {
-  const canonical = normalizeYouTubeUrl(track.url);
-  if (!canonical || !canonical.startsWith('http')) throw new Error('Invalid URL');
+  const original = track?.url;
+  const canonical = normalizeYouTubeUrl(original);
 
-  const opts = { quality:2, precache:3, discordPlayerCompatibility:true };
-  // Primary attempt with quality:2
-  try { return await playdl.stream(canonical, opts); } catch (e1) {
-    // quality fallback
-    try { return await playdl.stream(canonical, {...opts, quality:1}); } catch (e2) {
-      // If playdl.video_info can resolve a canonical yt URL, use it
-      if (canonical.includes('youtube.com/watch')) {
-        try {
-          const info = await playdl.video_info(canonical);
-          const trueUrl = info?.video_details?.url;
-          if (trueUrl && trueUrl !== canonical) return await playdl.stream(trueUrl, {...opts, quality:1});
-        } catch {}
-      }
+  if (!isValidHttpUrl(canonical)) {
+    throw new Error(`Invalid track URL: ${String(original || "missing")}`);
+  }
+
+  if (canonical.includes("spotify.com")) {
+    throw new Error("Spotify links need metadata resolution before playback");
+  }
+
+  const opts = {
+    quality: 2,
+    precache: 3,
+    discordPlayerCompatibility: true,
+  };
+
+  try {
+    return await playdl.stream(canonical, opts);
+  } catch (e1) {
+    console.warn("[Engine] stream primary failed:", e1.message);
+
+    try {
+      return await playdl.stream(canonical, { ...opts, quality: 1 });
+    } catch (e2) {
+      console.warn("[Engine] stream fallback failed:", e2.message);
+
       throw e2;
     }
   }
