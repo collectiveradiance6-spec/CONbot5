@@ -19,6 +19,8 @@ const server = http.createServer(app);
 app.use(cors());
 app.use(express.json());
 
+try { const activity = require('./activity'); app.use('/activity', activity); } catch(e) { console.warn('[API] activity route:', e.message); }
+
 // ── IN-MEMORY STATE (keyed by guildId) ────────────────────────────────
 const roomStates = new Map();
 const pendingCmds = new Map(); // guildId → [{command,payload,ts}]
@@ -78,6 +80,15 @@ app.get('/rooms', (_, res) => {
 });
 
 // ── SEARCH: Proxy so web UI can search without exposing token ──────────
+function normalizeYtUrl(url) {
+  if (!url) return null;
+  const short = url.match(/youtu\.be\/([A-Za-z0-9_-]{11})/);
+  if (short) return `https://www.youtube.com/watch?v=${short[1]}`;
+  const watch = url.match(/[?&]v=([A-Za-z0-9_-]{11})/);
+  if (watch) return `https://www.youtube.com/watch?v=${watch[1]}`;
+  return url;
+}
+
 app.get('/search', async (req, res) => {
   const q = req.query.q || '';
   if (!q.trim()) return res.json({ results:[] });
@@ -85,14 +96,14 @@ app.get('/search', async (req, res) => {
     const results = await playdl.search(q, {source:{youtube:'video'}, limit:8});
     res.json({ results: results.map(r => ({
       title:         r.title,
-      url:           r.url,
+      url:           normalizeYtUrl(r.url) || r.url,
       durationInSec: r.durationInSec,
       thumbnail:     r.thumbnails?.[0]?.url || null,
       channel:       r.channel?.name || 'YouTube',
     }))});
   } catch(e) {
     console.error('[API] search:', e.message);
-    res.json({ results:[] });
+    res.json({ results:[], error: e.message });
   }
 });
 
