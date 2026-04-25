@@ -119,7 +119,8 @@ const COMMANDS = [
   new SlashCommandBuilder().setName('ping').setDescription('🏓 Bot latency and status'),
   new SlashCommandBuilder().setName('help').setDescription('📖 CONbot5 command reference'),
   new SlashCommandBuilder().setName('diagnosevoice').setDescription('🔬 Voice + stream diagnostics — troubleshoot playback'),
-  new SlashCommandBuilder().setName('add').setDescription('➕ Add a song to queue (alias for /play)')\n    .addStringOption(o=>o.setName('query').setDescription('Song name or URL').setRequired(true)),
+  new SlashCommandBuilder().setName('add').setDescription('➕ Add a song to queue (alias for /play)')
+    .addStringOption(o=>o.setName('query').setDescription('Song name or URL').setRequired(true)),
 ];
 
 // ── COMMAND REGISTRATION ───────────────────────────────────────────────
