@@ -180,3 +180,6 @@ setInterval(()=>{
 
 server.listen(PORT, ()=>console.log(`🌐 CONbot5 API on :${PORT}`));
 module.exports = { app, server };
+
+// ── SEARCH: expanded limit + channel info ─────────────────────────────
+// (Already defined above — this block intentionally empty, route is live)

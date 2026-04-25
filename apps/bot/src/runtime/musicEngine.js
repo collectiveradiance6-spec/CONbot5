@@ -281,44 +281,62 @@ function normalizeYouTubeUrl(url) {
 
 async function getStream(track) {
   const original = track?.url;
-  const canonical = normalizeYouTubeUrl(original);
+
+  // Always re-normalize — mkTrack may have stored a short/embed URL
+  let canonical = normalizeYouTubeUrl(original);
+
+  // If ytId is known and canonical is still not a clean watch URL, force it
+  if (track?.ytId && /^[A-Za-z0-9_-]{11}$/.test(track.ytId)) {
+    canonical = `https://www.youtube.com/watch?v=${track.ytId}`;
+  }
 
   if (!isValidHttpUrl(canonical)) {
     throw new Error(`Invalid track URL: ${String(original || "missing")}`);
   }
-
   if (canonical.includes("spotify.com")) {
-    throw new Error("Spotify links need metadata resolution before playback");
+    throw new Error("Spotify URL reached getStream — resolve to YouTube first");
   }
 
-  console.log("[Engine] resolving stream:", {
-    title: track?.title,
-    source: track?.source,
-    url: canonical,
-    ytId: track?.ytId,
-  });
+  console.log("[Engine] getStream:", { title: track?.title, url: canonical, ytId: track?.ytId });
 
-  const validation = await playdl.validate(canonical).catch(() => false);
+  const validation = await playdl.validate(canonical).catch(() => 'unknown');
   console.log("[Engine] play-dl validate:", validation);
 
-  if (!validation || validation === "false") {
-    throw new Error(`play-dl rejected URL: ${canonical}`);
+  // If validate returns 'false' string or false, try re-resolving via video_info
+  if (!validation || validation === 'false') {
+    console.warn("[Engine] validate failed — attempting video_info re-resolve");
+    try {
+      const info = await playdl.video_info(canonical);
+      const reUrl = `https://www.youtube.com/watch?v=${info.video_details?.id}`;
+      console.log("[Engine] re-resolved:", reUrl);
+      return await playdl.stream(reUrl, { quality: 2, discordPlayerCompatibility: true });
+    } catch (re) {
+      throw new Error(`play-dl rejected URL and re-resolve failed: ${re.message}`);
+    }
   }
 
-  const opts = {
-    quality: 2,
-    discordPlayerCompatibility: true,
-  };
-
+  // Primary stream attempt — quality 2 (high Opus)
   try {
-    return await playdl.stream(canonical, opts);
+    return await playdl.stream(canonical, { quality: 2, discordPlayerCompatibility: true });
   } catch (e1) {
-    console.warn("[Engine] stream primary failed:", e1.message);
+    console.warn("[Engine] stream q2 failed:", e1.message);
 
-    return await playdl.stream(canonical, {
-      quality: 1,
-      discordPlayerCompatibility: true,
-    });
+    // Fallback 1 — quality 1 (lower bitrate)
+    try {
+      return await playdl.stream(canonical, { quality: 1, discordPlayerCompatibility: true });
+    } catch (e2) {
+      console.warn("[Engine] stream q1 failed:", e2.message);
+
+      // Fallback 2 — re-resolve URL via video_info and retry
+      try {
+        const info = await playdl.video_info(canonical);
+        const reUrl = `https://www.youtube.com/watch?v=${info.video_details?.id}`;
+        console.log("[Engine] stream fallback re-resolve:", reUrl);
+        return await playdl.stream(reUrl, { quality: 1, discordPlayerCompatibility: true });
+      } catch (e3) {
+        throw new Error(`All stream attempts failed. Last error: ${e3.message}. Check YOUTUBE_COOKIE env var.`);
+      }
+    }
   }
 }
 
@@ -987,210 +1005,47 @@ setInterval(async()=>{
   }
 }, PULSE_MS);
 
-function buildSearchEmbed(results, query) {
-  const list = (results || [])
-    .slice(0, 8)
-    .map((r, i) => {
-      const title = r?.title || "Unknown Track";
-      const duration = typeof fmtTime === "function"
-        ? fmtTime(r?.durationInSec || r?.duration || 0)
-        : `${r?.durationInSec || r?.duration || 0}s`;
-      const channel = r?.channel?.name || r?.channel || r?.source || "YouTube";
-
-      return `\`${i + 1}.\` **${title.slice(0, 80)}**\n${duration} • ${channel}`;
-    })
-    .join("\n\n");
-
-  return new EmbedBuilder()
-    .setColor(0x56D9FF)
-    .setTitle("🔍 CONbot5 Search Results")
-    .setDescription(
-      list ||
-        "No playable results found. Try a more specific song title or a direct YouTube URL."
-    )
-    .addFields({
-      name: "Query",
-      value: `\`${String(query || "unknown").slice(0, 200)}\``,
-      inline: false,
-    })
-    .setFooter(FT)
-    .setTimestamp();
-}
-
+// ── AUDIO LAB EMBED (stub — called by some routers) ───────────────────
 function buildAudioLabEmbed(state) {
-  const eq = EQ[state?.eq] || EQ.flat;
-  const home = typeof isHomeGuild === "function" ? isHomeGuild(state?.guildId) : false;
-
+  const eq = EQ[state.eq] || EQ.flat;
   return new EmbedBuilder()
-    .setColor(0x56D9FF)
-    .setTitle("🎛️ CONbot5 Audio Lab")
-    .setDescription(
-      [
-        "**Live audio controls for the current session.**",
-        "",
-        home
-          ? "🌈 Dominion Home Guild: fully unlocked."
-          : "Standard mode: advanced DSP features are scaffolded."
-      ].join("\n")
-    )
-    .addFields(
-      {
-        name: "🔊 Volume",
-        value: `${state?.volume ?? 80}%`,
-        inline: true
-      },
-      {
-        name: "🎚️ Current EQ",
-        value: eq?.label || state?.eq || "Flat",
-        inline: true
-      },
-      {
-        name: "🎵 Playback",
-        value: state?.current ? "Active" : "Idle",
-        inline: true
-      },
-      {
-        name: "✅ Live Controls",
-        value: "`Volume` · `EQ Presets` · `Reset EQ`",
-        inline: false
-      },
-      {
-        name: "🧪 Coming Online",
-        value:
-          "`10-Band EQ` · `Limiter` · `Normalization` · `Crossfade` · `Spatial Width`",
-        inline: false
-      }
-    )
-    .setFooter(FT)
-    .setTimestamp();
+    .setColor(0x8B5CFF)
+    .setTitle('🎛️ CONbot5 Audio Lab')
+    .setDescription([
+      `**EQ Preset:** ${eq.label}`,
+      `**Volume:** ${state.volume}%`,
+      `**Loop:** ${state.loop ? 'Track' : state.loopQueue ? 'Queue' : 'Off'}`,
+      `**Shuffle:** ${state.shuffle ? 'ON' : 'Off'}`,
+      `**AutoPlay:** ${state.autoplay ? 'ON' : 'Off'}`,
+      '',
+      '> Use the buttons below or slash commands to control audio.',
+    ].join('\n'))
+    .setFooter(FT).setTimestamp();
 }
 
 function buildAudioLabComponents(state) {
-  const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("c5_vol_down")
-      .setLabel("Vol -")
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId("c5_vol_up")
-      .setLabel("Vol +")
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId("c5_eq_flat")
-      .setLabel("Flat")
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId("c5_eq_bassboost")
-      .setLabel("Bass Boost")
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId("c5_np_refresh")
-      .setLabel("Refresh")
-      .setStyle(ButtonStyle.Secondary)
+  const r1 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('c5_vol_dn').setEmoji('🔉').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('c5_vol_up').setEmoji('🔊').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('c5_loop').setEmoji('🔂').setStyle(state.loop ? ButtonStyle.Success : ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('c5_loopq').setEmoji('🔁').setStyle(state.loopQueue ? ButtonStyle.Success : ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('c5_shuffle').setEmoji('🔀').setStyle(state.shuffle ? ButtonStyle.Success : ButtonStyle.Secondary),
   );
-
-  const preset = new StringSelectMenuBuilder()
-    .setCustomId("c5_audio_preset")
-    .setPlaceholder("Choose Audio Lab preset")
-    .addOptions([
-      { label: "Flat", value: "flat", description: "Neutral CONbot5 output" },
-      { label: "Bass Boost", value: "bassboost", description: "More low-end weight" },
-      { label: "Nightcore", value: "nightcore", description: "Bright, fast, energetic" },
-      { label: "Vaporwave", value: "vaporwave", description: "Soft slowed resonance" },
-      { label: "Earrape", value: "earrape", description: "Extreme gain warning" }
-    ]);
-
-  const row2 = new ActionRowBuilder().addComponents(preset);
-
-  return [row1, row2];
-}
-
-function buildSessionEmbed(state, guild) {
-  return new EmbedBuilder()
-    .setColor(0x8B72FF)
-    .setTitle("👥 CONbot5 Session")
-    .setDescription("Social listening control center.")
-    .addFields(
-      { name: "Guild", value: guild?.name || state?.guildId || "Unknown", inline: true },
-      { name: "Voice", value: state?.voiceChannelId || "Not connected", inline: true },
-      { name: "Queue", value: String(state?.queue?.length || 0), inline: true },
-      { name: "Now Playing", value: state?.current?.title || "Nothing", inline: false }
-    )
-    .setFooter(FT)
-    .setTimestamp();
-}
-
-function buildSessionComponents(state) {
-  return [
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("c5_launch_session")
-        .setLabel("Start / Join")
-        .setStyle(ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId("c5_np_refresh")
-        .setLabel("Refresh")
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId("c5_open_queue")
-        .setLabel("Queue")
-        .setStyle(ButtonStyle.Secondary)
-    )
-  ];
-}
-
-function buildSmartMixEmbed(state) {
-  return new EmbedBuilder()
-    .setColor(0xFF6ADF)
-    .setTitle("🤖 CONbot5 Smart Mix")
-    .setDescription("Mood, genre, and session-aware queue intelligence.")
-    .addFields(
-      { name: "Current Mood", value: state?.mood || "Manual", inline: true },
-      { name: "Autoplay", value: state?.autoplay ? "On" : "Off", inline: true },
-      { name: "Queue", value: String(state?.queue?.length || 0), inline: true },
-      {
-        name: "Available",
-        value: "`Mood Rooms` · `Autoplay` · `Genre Browser`",
-        inline: false
-      },
-      {
-        name: "Coming Online",
-        value: "`Generate Next 10` · `Queue Balance` · `Repair Unavailable`",
-        inline: false
-      }
-    )
-    .setFooter(FT)
-    .setTimestamp();
-}
-
-function buildSmartMixComponents(state) {
-  return [
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("c5_toggle_autoplay")
-        .setLabel("Toggle Autoplay")
-        .setStyle(ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId("c5_open_browse")
-        .setLabel("Browse Genres")
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId("c5_np_refresh")
-        .setLabel("Refresh")
-        .setStyle(ButtonStyle.Secondary)
-    )
-  ];
+  const r2 = new ActionRowBuilder().addComponents(
+    new StringSelectMenuBuilder().setCustomId('c5_eq').setPlaceholder('🎛️ EQ Preset…')
+      .addOptions(Object.entries(EQ).map(([k, v]) => ({ label: v.label, value: k, default: state.eq === k }))),
+  );
+  return [r1, r2];
 }
 
 module.exports = {
-buildSearchEmbed,
   getState, ensureVC, playNext, resolveTrack, searchMultiple,
   cmdPlay, cmdSkip, cmdStop, cmdLaunchpad, cmdDiagnoseVoice,
   handleButton, handleSelect, handleLaunchpadButton,
   buildNowPlayingEmbed, buildControlPanel, buildDashboardComponents,
   buildLaunchpadEmbed, buildLaunchpadComponents,
-  buildQueueEmbed, buildHistoryEmbed, buildGenreEmbed, buildGenreComponents, buildAudioLabEmbed, buildAudioLabComponents, buildSessionEmbed, buildSessionComponents, buildSmartMixEmbed,
-buildSmartMixComponents,
+  buildAudioLabEmbed, buildAudioLabComponents,
+  buildQueueEmbed, buildHistoryEmbed, buildGenreEmbed, buildGenreComponents,
   updateDashboard, postNowPlaying, mkTrack, fmtTime, progBar,
   GENRES, MOODS, EQ, FT, permanentRooms,
   hasPremiumAccess, isHomeGuild,
