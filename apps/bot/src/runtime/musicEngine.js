@@ -987,7 +987,38 @@ setInterval(async()=>{
   }
 }, PULSE_MS);
 
+function buildSearchEmbed(results, query) {
+  const list = (results || [])
+    .slice(0, 8)
+    .map((r, i) => {
+      const title = r?.title || "Unknown Track";
+      const duration = typeof fmtTime === "function"
+        ? fmtTime(r?.durationInSec || r?.duration || 0)
+        : `${r?.durationInSec || r?.duration || 0}s`;
+      const channel = r?.channel?.name || r?.channel || r?.source || "YouTube";
+
+      return `\`${i + 1}.\` **${title.slice(0, 80)}**\n${duration} • ${channel}`;
+    })
+    .join("\n\n");
+
+  return new EmbedBuilder()
+    .setColor(0x56D9FF)
+    .setTitle("🔍 CONbot5 Search Results")
+    .setDescription(
+      list ||
+        "No playable results found. Try a more specific song title or a direct YouTube URL."
+    )
+    .addFields({
+      name: "Query",
+      value: `\`${String(query || "unknown").slice(0, 200)}\``,
+      inline: false,
+    })
+    .setFooter(FT)
+    .setTimestamp();
+}
+
 module.exports = {
+buildSearchEmbed,
   getState, ensureVC, playNext, resolveTrack, searchMultiple,
   cmdPlay, cmdSkip, cmdStop, cmdLaunchpad, cmdDiagnoseVoice,
   handleButton, handleSelect, handleLaunchpadButton,
