@@ -9,5 +9,8 @@
   },
   "devDependencies": {
     "serve": "^14.2.6"
+  },
+  "dependencies": {
+    "@discord/embedded-app-sdk": "^2.4.1"
   }
 }
