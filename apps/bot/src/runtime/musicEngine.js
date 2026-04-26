@@ -447,11 +447,13 @@ async function ensureVC(state, vc, client) {
   const ex = getVoiceConnection(state.guildId);
   if (ex && state.connection===ex) return ex;
 
-  const conn = joinVoiceChannel({
-    channelId: vc.id, guildId: state.guildId,
-    adapterCreator: vc.guild.voiceAdapterCreator,
-    selfDeaf:true, selfMute:false,
-  });
+ const connection = joinVoiceChannel({
+  channelId: voiceChannel.id,
+  guildId: guild.id,
+  adapterCreator: guild.voiceAdapterCreator,
+  selfDeaf: false,   // ← Audio works now
+  selfMute: false,
+});
 
   state.connection     = conn;
   state.voiceChannelId = vc.id;
