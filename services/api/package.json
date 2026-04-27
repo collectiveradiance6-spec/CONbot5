@@ -1,15 +1,8 @@
 {
   "name": "conbot5-api",
   "version": "8.0.0",
-  "description": "CONbot5 REST + SSE + WebSocket API",
   "main": "src/index.js",
-  "engines": {
-    "node": ">=18.0.0"
-  },
-  "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js"
-  },
+  "scripts": { "start": "node src/index.js" },
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",

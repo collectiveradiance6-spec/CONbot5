@@ -1593,7 +1593,7 @@ window.CONbotBG = new BGEngine();
 </script>
 <script>
 
-const CFG={CLIENT_ID:'eb9ecdff-4048-4a83-8f40-f2e16d2e9a81',API:window.ENV_API_URL||'https://conbot5-api.onrender.com',HOME:'1438103556610723922',ADMIN_ROLES:['TheConclave', 'Admin', 'Administrator', 'High Curator', 'Archmaestro', 'Wildheart', 'Skywarden', 'Oracle of Veils', 'ForgeSmith', 'Iron Vanguard', 'Gatekeeper', 'Veilcaster', 'Hazeweaver', 'Moderator', 'Mod']};
+const CFG={CLIENT_ID:window.ENV_CLIENT_ID||'1496510504196116480',API:window.ENV_API_URL||'https://conbot5-api.onrender.com',HOME:'1438103556610723922',ADMIN_ROLES:['TheConclave', 'Admin', 'Administrator', 'High Curator', 'Archmaestro', 'Wildheart', 'Skywarden', 'Oracle of Veils', 'ForgeSmith', 'Iron Vanguard', 'Gatekeeper', 'Veilcaster', 'Hazeweaver', 'Moderator', 'Mod']};
 let ST={},SSE=null,BFS=14,GID='',IS_ADMIN=false,USER_ROLES=[];
 const el=id=>document.getElementById(id);
 const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1811,5 +1811,6 @@ loadAuth();
 console.log('%c CONbot5 APEX v10 ','background:linear-gradient(90deg,#4DDFFF,#7C4DFF,#FF2DB8);color:#000;font-weight:bold;padding:5px 10px;border-radius:4px');
 
 </script>
+<script src="/frontend_patch.js"></script>
 </body>
 </html>
