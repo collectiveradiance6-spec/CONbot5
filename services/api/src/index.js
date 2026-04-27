@@ -227,6 +227,14 @@ app.get('/health', (_, res) => res.json({
 // Called by Cloudflare _worker.js proxy:
 //   Pages /api/auth/discord/callback → this /auth/web/callback
 // ═══════════════════════════════════════════════════════════════════════
+
+// OAuth callback alias — handles both paths
+// Worker maps /api/auth/discord/callback → this endpoint
+app.get('/auth/discord/callback', (req, res, next) => {
+  req.url = '/auth/web/callback' + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '');
+  next('route');
+});
+
 app.get('/auth/web/callback', async (req, res) => {
   const { code, state: oauthState } = req.query;
 
