@@ -830,6 +830,489 @@ body.rm *,body.rm *::before,body.rm *::after{animation:none!important;transition
 /* Waveform background cosmetics */
 #waveCanvas{border-radius:0}
 .wv{background:linear-gradient(180deg,rgba(0,0,0,.22),transparent 30%)}
+
+/* ═══════════════════════════════════════════════════════════════════
+   APPLE LIQUID GLASS 2025 — glassEffect() CSS Implementation
+   Ref: SwiftUI glassEffect(), WWDC 2025 sessions 219/220/281/356
+   GlassButtonStyle · GlassProminentButtonStyle · GlassEffectContainer
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── CORE LIQUID GLASS MATERIAL TOKENS ──────────────────────────── */
+:root {
+  /* Transmission (backdrop) */
+  --lgl-blur: blur(52px) saturate(220%) brightness(1.08);
+  --lgl-blur-thin: blur(28px) saturate(180%) brightness(1.05);
+
+  /* Dark mode glass fill (primary for CONbot5) */
+  --lgl-fill: rgba(255,255,255,.095);
+  --lgl-fill-hover: rgba(255,255,255,.155);
+  --lgl-fill-active: rgba(255,255,255,.065);
+  --lgl-fill-prominent: rgba(255,255,255,.245); /* GlassProminentButtonStyle */
+
+  /* Light mode glass fill */
+  --lgl-fill-light: rgba(255,255,255,.52);
+  --lgl-fill-light-prominent: rgba(255,255,255,.78);
+
+  /* Glass edges & speculars */
+  --lgl-border: rgba(255,255,255,.220);
+  --lgl-border-light: rgba(255,255,255,.450);
+  --lgl-spec-top: rgba(255,255,255,.680);     /* Bright rim at top */
+  --lgl-spec-body: rgba(255,255,255,.220);
+  --lgl-spec-bot: rgba(255,255,255,.060);
+
+  /* Shadows */
+  --lgl-shadow: 0 4px 14px rgba(0,0,0,.28), 0 1px 4px rgba(0,0,0,.18);
+  --lgl-shadow-raised: 0 8px 28px rgba(0,0,0,.32), 0 2px 8px rgba(0,0,0,.22);
+  --lgl-shadow-press: 0 1px 4px rgba(0,0,0,.22);
+
+  /* Motion spring */
+  --lgl-spring: cubic-bezier(.34,1.56,.64,1);
+  --lgl-ease: cubic-bezier(.22,.61,.36,1);
+}
+
+/* Light mode overrides */
+body.day {
+  --lgl-fill: var(--lgl-fill-light);
+  --lgl-fill-hover: rgba(255,255,255,.68);
+  --lgl-fill-prominent: var(--lgl-fill-light-prominent);
+  --lgl-border: rgba(255,255,255,.55);
+  --lgl-spec-top: rgba(255,255,255,.90);
+  --ink: #f0f4f8; --d1: #e8eef5; --d2: #dde6f0; --d3: #d0dcea;
+  --tx: #1a2540; --tx2: #3a5080; --tx3: #8090b0;
+  --lgl-shadow: 0 4px 16px rgba(0,0,0,.10), 0 1px 4px rgba(0,0,0,.07);
+  --lgl-shadow-raised: 0 8px 32px rgba(0,0,0,.14), 0 2px 8px rgba(0,0,0,.09);
+  background: var(--ink);
+}
+
+/* ── THE LIQUID GLASS SURFACE — base material ────────────────────
+   This is glassEffect(Glass, in: SomeShape) translated to CSS.
+   Three physical layers:
+   1. Backdrop transmission (blur + saturate) — bleed-through
+   2. Fill tint — the glass material
+   3. Specular highlights — the surface reflection
+   ──────────────────────────────────────────────────────────────── */
+.lgl {
+  backdrop-filter: var(--lgl-blur);
+  -webkit-backdrop-filter: var(--lgl-blur);
+  background: var(--lgl-fill);
+  border: 1px solid var(--lgl-border);
+  border-radius: 20px;
+  box-shadow:
+    /* Layer 1: specular rim — the "wet glass" top edge */
+    0 1.5px 0 var(--lgl-spec-top) inset,
+    /* Layer 2: inner body glow */
+    0 0 0 .5px var(--lgl-spec-body) inset,
+    /* Layer 3: base shadow */
+    var(--lgl-shadow);
+  transition: background .2s var(--lgl-ease), box-shadow .2s var(--lgl-ease),
+              border-color .2s var(--lgl-ease);
+  position: relative; overflow: hidden;
+}
+.lgl::before { /* Convex specular lens — the "glass surface" feel */
+  content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background: radial-gradient(
+    ellipse 85% 48% at 50% 0%,
+    rgba(255,255,255,.40) 0%,
+    rgba(255,255,255,.08) 55%,
+    transparent 100%
+  );
+  mix-blend-mode: screen;
+}
+.lgl:hover {
+  background: var(--lgl-fill-hover);
+  box-shadow: 0 2px 0 var(--lgl-spec-top) inset, 0 0 0 .5px var(--lgl-spec-body) inset,
+              var(--lgl-shadow-raised);
+  border-color: rgba(255,255,255,.32);
+}
+
+/* ── GlassButtonStyle — standard interactive glass button ─────── */
+.lgl-btn {
+  position: relative; display: inline-flex; align-items: center;
+  justify-content: center; gap: 7px;
+  padding: 10px 20px;
+  border-radius: 999px; /* DefaultGlassEffectShape = Capsule */
+  border: 1px solid var(--lgl-border);
+  background: var(--lgl-fill);
+  backdrop-filter: var(--lgl-blur-thin);
+  -webkit-backdrop-filter: var(--lgl-blur-thin);
+  box-shadow:
+    0 1.5px 0 var(--lgl-spec-top) inset,
+    0 -0.5px 0 var(--lgl-spec-bot) inset,
+    var(--lgl-shadow);
+  color: rgba(255,255,255,.92);
+  font-family: var(--fb); font-size: 13px; font-weight: 500;
+  letter-spacing: -.01em; cursor: pointer; overflow: hidden;
+  transition: all .22s var(--lgl-spring);
+  -webkit-user-select: none; user-select: none;
+}
+.lgl-btn::before { /* Convex specular */
+  content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background: radial-gradient(ellipse 90% 55% at 50% 0%, rgba(255,255,255,.45) 0%, transparent 65%);
+}
+.lgl-btn:hover {
+  background: var(--lgl-fill-hover);
+  transform: translateY(-1.5px) scale(1.02);
+  box-shadow: 0 2px 0 var(--lgl-spec-top) inset, 0 -0.5px 0 var(--lgl-spec-bot) inset,
+              var(--lgl-shadow-raised);
+  border-color: rgba(255,255,255,.35);
+}
+.lgl-btn:active {
+  transform: scale(.95);
+  background: var(--lgl-fill-active);
+  box-shadow: 0 .5px 0 rgba(255,255,255,.38) inset, var(--lgl-shadow-press);
+}
+
+/* ── GlassProminentButtonStyle — primary actions (Play) ──────── */
+.lgl-btn-pr {
+  background: var(--lgl-fill-prominent);
+  border-color: rgba(255,255,255,.42);
+  box-shadow:
+    0 2px 0 rgba(255,255,255,.82) inset,
+    0 -0.5px 0 rgba(255,255,255,.12) inset,
+    0 6px 20px rgba(0,0,0,.30),
+    0 2px 6px rgba(0,0,0,.22),
+    0 0 0 .5px rgba(255,255,255,.18) inset;
+}
+.lgl-btn-pr:hover {
+  background: rgba(255,255,255,.32);
+  box-shadow: 0 2.5px 0 rgba(255,255,255,.88) inset, 0 -0.5px 0 rgba(255,255,255,.14) inset,
+              0 10px 32px rgba(0,0,0,.36), 0 3px 10px rgba(0,0,0,.28);
+}
+
+/* ── TRANSPORT BUTTONS — Full redesign ───────────────────────── */
+/* Old .tb completely replaced. These are now proper Liquid Glass circles. */
+.tb {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; cursor: pointer; overflow: hidden;
+  border: 1px solid var(--lgl-border);
+  background: var(--lgl-fill);
+  backdrop-filter: var(--lgl-blur-thin);
+  -webkit-backdrop-filter: var(--lgl-blur-thin);
+  box-shadow:
+    0 1.5px 0 var(--lgl-spec-top) inset,
+    0 -0.5px 0 var(--lgl-spec-bot) inset,
+    var(--lgl-shadow);
+  transition: all .2s var(--lgl-spring);
+  -webkit-user-select: none; user-select: none;
+  width: 40px; height: 40px;
+}
+.tb::before {
+  content:'';position:absolute;inset:0;border-radius:50%;pointer-events:none;
+  background: radial-gradient(ellipse 85% 50% at 50% 8%, rgba(255,255,255,.50) 0%, transparent 65%);
+}
+.tb .ic {
+  position: relative; z-index: 1; line-height: 1;
+  font-size: 14px; color: rgba(255,255,255,.88);
+  /* SF Symbols-style: clean white, slightly blurred shadow */
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.28));
+  /* Remove the old gradient text */
+  background: none; -webkit-text-fill-color: unset; background-clip: unset;
+}
+.tb:hover {
+  background: var(--lgl-fill-hover);
+  transform: scale(1.08);
+  border-color: rgba(255,255,255,.35);
+  box-shadow: 0 2px 0 var(--lgl-spec-top) inset, 0 -0.5px 0 var(--lgl-spec-bot) inset,
+              var(--lgl-shadow-raised);
+}
+.tb:active { transform: scale(.88); background: var(--lgl-fill-active); }
+.tb.on {
+  background: rgba(255,255,255,.22);
+  border-color: rgba(255,255,255,.44);
+  box-shadow: 0 2px 0 rgba(255,255,255,.72) inset, 0 -0.5px 0 var(--lgl-spec-bot) inset,
+              var(--lgl-shadow-raised), 0 0 0 1.5px rgba(255,255,255,.28);
+}
+.tb.on .ic { color: #fff; filter: drop-shadow(0 0 8px rgba(77,223,255,.7)) drop-shadow(0 1px 1px rgba(0,0,0,.3)); }
+/* PLAY button — GlassProminentButtonStyle */
+.tb.pr {
+  width: 54px; height: 54px;
+  background: var(--lgl-fill-prominent);
+  border-color: rgba(255,255,255,.44);
+  box-shadow:
+    0 2px 0 rgba(255,255,255,.82) inset,
+    0 -0.5px 0 rgba(255,255,255,.12) inset,
+    0 8px 24px rgba(0,0,0,.30),
+    0 2px 6px rgba(0,0,0,.22);
+}
+.tb.pr .ic { font-size: 20px; color: #fff; filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); }
+.tb.pr:hover {
+  transform: scale(1.10);
+  box-shadow: 0 2.5px 0 rgba(255,255,255,.88) inset, 0 -0.5px 0 rgba(255,255,255,.14) inset,
+              0 12px 36px rgba(0,0,0,.36), 0 3px 10px rgba(0,0,0,.28);
+}
+.tb.pr:active { transform: scale(.92); }
+
+/* ── TAB BAR — GlassEffectContainer morphing tabs ────────────── */
+/* Replaces .hub-tabs/.hub-tab with proper pill-tab system */
+.lgl-tabbar {
+  display: flex; padding: 5px;
+  background: rgba(255,255,255,.07);
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 14px;
+  box-shadow: 0 1px 0 rgba(255,255,255,.22) inset, var(--lgl-shadow);
+  gap: 3px; flex-shrink: 0;
+  margin: 8px 14px 0;
+}
+.lgl-tab {
+  flex: 1; padding: 7px 10px; border-radius: 10px;
+  border: none; background: transparent;
+  color: rgba(255,255,255,.52); font-family: var(--fb);
+  font-size: 11px; font-weight: 600; letter-spacing: -.01em;
+  cursor: pointer; transition: all .22s var(--lgl-spring);
+  position: relative; overflow: hidden; white-space: nowrap;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+}
+.lgl-tab .t-ico { font-size: 12px; }
+.lgl-tab.on {
+  /* The selected tab gets GlassProminentButtonStyle treatment */
+  background: var(--lgl-fill-prominent);
+  border: 1px solid rgba(255,255,255,.36);
+  color: rgba(255,255,255,.96);
+  box-shadow:
+    0 1.5px 0 rgba(255,255,255,.70) inset,
+    0 -0.5px 0 rgba(255,255,255,.08) inset,
+    0 2px 8px rgba(0,0,0,.22);
+  font-weight: 700;
+}
+.lgl-tab.on::before {
+  content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background: radial-gradient(ellipse 90% 50% at 50% 0%, rgba(255,255,255,.38) 0%, transparent 65%);
+}
+.lgl-tab:hover:not(.on) { color: rgba(255,255,255,.76); background: rgba(255,255,255,.06); }
+.lgl-tab:active { transform: scale(.96); }
+
+/* ── HUB ACTION BUTTONS (bottom bar) ─────────────────────────── */
+.hub-action {
+  flex: 1; min-width: 0; padding: 10px 12px;
+  border-radius: 14px; border: 1px solid var(--lgl-border);
+  background: var(--lgl-fill);
+  backdrop-filter: var(--lgl-blur-thin);
+  -webkit-backdrop-filter: var(--lgl-blur-thin);
+  box-shadow:
+    0 1.5px 0 var(--lgl-spec-top) inset,
+    0 -0.5px 0 var(--lgl-spec-bot) inset,
+    var(--lgl-shadow);
+  color: rgba(255,255,255,.85); font-family: var(--fb);
+  font-size: 11.5px; font-weight: 600; letter-spacing: -.01em;
+  cursor: pointer; transition: all .2s var(--lgl-spring);
+  text-align: center; position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+}
+.hub-action::before {
+  content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background: radial-gradient(ellipse 90% 55% at 50% 0%, rgba(255,255,255,.35) 0%, transparent 65%);
+}
+.hub-action:hover {
+  background: var(--lgl-fill-hover); transform: translateY(-2px) scale(1.02);
+  border-color: rgba(255,255,255,.32);
+  box-shadow: 0 2px 0 var(--lgl-spec-top) inset, 0 -0.5px 0 var(--lgl-spec-bot) inset,
+              var(--lgl-shadow-raised);
+}
+.hub-action:active { transform: scale(.94); background: var(--lgl-fill-active); }
+/* First hub action (skip button) is prominent */
+.hub-action:first-child {
+  flex: 0 0 48px; background: var(--lgl-fill-prominent);
+  border-color: rgba(255,255,255,.40);
+  box-shadow: 0 2px 0 rgba(255,255,255,.75) inset, 0 -0.5px 0 var(--lgl-spec-bot) inset,
+              var(--lgl-shadow-raised);
+}
+
+/* ── PILL BUTTONS (Quick Controls) ────────────────────────────── */
+.pill-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 14px 8px 8px; border-radius: 999px;
+  border: 1px solid var(--lgl-border);
+  background: var(--lgl-fill);
+  backdrop-filter: var(--lgl-blur-thin);
+  -webkit-backdrop-filter: var(--lgl-blur-thin);
+  box-shadow: 0 1.5px 0 var(--lgl-spec-top) inset, var(--lgl-shadow);
+  color: rgba(255,255,255,.82); font-family: var(--fb); font-size: 11px;
+  font-weight: 600; letter-spacing: -.01em; cursor: pointer;
+  transition: all .22s var(--lgl-spring); position: relative; overflow: hidden;
+}
+.pill-btn::before {
+  content:'';position:absolute;inset:0;border-radius:999px;pointer-events:none;
+  background: radial-gradient(ellipse 90% 55% at 50% 0%, rgba(255,255,255,.38) 0%, transparent 65%);
+}
+.pill-orb {
+  width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 38% 30%, rgba(255,255,255,.82), rgba(200,220,255,.5) 55%, rgba(140,160,255,.3));
+  box-shadow: 0 1px 0 rgba(255,255,255,.90) inset, 0 2px 6px rgba(0,0,0,.30);
+  font-size: 12px; position: relative;
+}
+.pill-orb::before { /* Colored glow behind glass sphere */
+  content:'';position:absolute;inset:-5px;border-radius:50%;
+  background: var(--orb-col, #4DDFFF); filter: blur(8px); opacity: .55; z-index: -1;
+}
+.pill-btn:hover { background: var(--lgl-fill-hover); transform: translateY(-1.5px); border-color: rgba(255,255,255,.32); }
+.pill-btn:active { transform: scale(.94); }
+.pill-btn.on {
+  background: rgba(255,255,255,.20); border-color: rgba(255,255,255,.40);
+  box-shadow: 0 2px 0 rgba(255,255,255,.72) inset, var(--lgl-shadow-raised),
+              0 0 0 1.5px rgba(255,255,255,.20);
+}
+
+/* ── LIQUID GLASS TOGGLES — Apple UISwitch 2025 ──────────────── */
+/* GlassEffectContainer: track + knob morph as one glass unit */
+.lgl-toggle {
+  width: 46px; height: 28px; border-radius: 999px;
+  position: relative; cursor: pointer; flex-shrink: 0;
+  /* OFF state: glass track */
+  background: rgba(255,255,255,.09);
+  border: 1px solid rgba(255,255,255,.20);
+  backdrop-filter: var(--lgl-blur-thin);
+  -webkit-backdrop-filter: var(--lgl-blur-thin);
+  box-shadow: 0 1px 0 rgba(255,255,255,.25) inset, var(--lgl-shadow-press);
+  transition: all .28s var(--lgl-spring);
+}
+.lgl-toggle::before { /* Knob — glass sphere */
+  content: ''; position: absolute; top: 3px; left: 3px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: radial-gradient(circle at 36% 28%, rgba(255,255,255,.96), rgba(255,255,255,.70) 55%, rgba(200,220,255,.5));
+  box-shadow:
+    0 1.5px 0 rgba(255,255,255,.95) inset,
+    0 3px 8px rgba(0,0,0,.38),
+    0 1px 3px rgba(0,0,0,.28);
+  transition: transform .28s var(--lgl-spring), background .22s;
+}
+.lgl-toggle.on {
+  background: rgba(100,180,255,.38);
+  border-color: rgba(120,200,255,.50);
+  box-shadow: 0 1px 0 rgba(255,255,255,.35) inset,
+              0 0 0 3px rgba(100,180,255,.18),
+              0 2px 8px rgba(60,140,255,.25);
+}
+.lgl-toggle.on::before { transform: translateX(18px); }
+
+/* ── DAY/NIGHT TOGGLE ─────────────────────────────────────────── */
+.day-night-wrap {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 8px 4px 4px;
+  background: var(--lgl-fill); border: 1px solid var(--lgl-border);
+  backdrop-filter: var(--lgl-blur-thin); -webkit-backdrop-filter: var(--lgl-blur-thin);
+  border-radius: 999px;
+  box-shadow: 0 1.5px 0 var(--lgl-spec-top) inset, var(--lgl-shadow);
+  cursor: pointer; transition: all .22s var(--lgl-spring);
+}
+.day-night-wrap:hover { background: var(--lgl-fill-hover); transform: scale(1.04); }
+.day-night-icon {
+  width: 26px; height: 26px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 14px;
+  background: var(--lgl-fill-prominent);
+  border: 1px solid rgba(255,255,255,.35);
+  box-shadow: 0 1.5px 0 rgba(255,255,255,.72) inset, 0 2px 6px rgba(0,0,0,.25);
+  transition: all .3s var(--lgl-spring);
+}
+.day-night-label { font-family: var(--fm); font-size: 10px; color: rgba(255,255,255,.75); letter-spacing:.04em; }
+body.day .day-night-label { color: var(--tx2); }
+body.day .day-night-wrap {
+  background: rgba(255,255,255,.52); border-color: rgba(255,255,255,.65);
+  box-shadow: 0 1.5px 0 rgba(255,255,255,.90) inset, var(--lgl-shadow);
+}
+
+/* ── HUB HEADER refine ─────────────────────────────────────────── */
+.hub-hdr { padding: 14px 16px 10px; border-bottom: 1px solid rgba(255,255,255,.09); }
+.hub-title {
+  font-family: var(--fd); font-size: 16px; font-weight: 800; letter-spacing: .06em;
+  background: var(--t-rb); background-size: var(--t-rsz);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  animation: rbFlow 4s linear infinite;
+}
+.hub-sub { font-family: var(--fm); font-size: 9.5px; color: var(--tx3); letter-spacing: .06em; margin-top: 2px; }
+.hub-x {
+  margin-left: auto; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--lgl-fill); border: 1px solid var(--lgl-border);
+  backdrop-filter: var(--lgl-blur-thin); -webkit-backdrop-filter: var(--lgl-blur-thin);
+  box-shadow: 0 1.5px 0 var(--lgl-spec-top) inset, var(--lgl-shadow-press);
+  color: rgba(255,255,255,.65); font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .2s var(--lgl-spring);
+}
+.hub-x:hover { background: rgba(255,51,85,.15); border-color: rgba(255,51,85,.35); color: #FF3355; transform: scale(1.08); }
+
+/* ── HUB ACTION FOOTER ────────────────────────────────────────── */
+.hub-actions {
+  display: flex; gap: 7px; padding: 10px 14px 14px;
+  border-top: 1px solid rgba(255,255,255,.07); flex-shrink: 0;
+}
+
+/* ── GLASS INPUT ──────────────────────────────────────────────── */
+.s-in, .auth-in, .pu-in {
+  background: var(--lgl-fill);
+  backdrop-filter: var(--lgl-blur-thin); -webkit-backdrop-filter: var(--lgl-blur-thin);
+  border: 1px solid var(--lgl-border);
+  box-shadow: 0 1px 0 rgba(255,255,255,.18) inset, var(--lgl-shadow-press);
+  color: var(--tx); border-radius: 13px; padding: 10px 13px; font-size: 13px;
+  outline: none; transition: all .18s var(--lgl-ease); width: 100%;
+}
+.s-in::placeholder, .auth-in::placeholder, .pu-in::placeholder { color: var(--tx3); }
+.s-in:focus, .auth-in:focus, .pu-in:focus {
+  background: var(--lgl-fill-hover);
+  border-color: rgba(255,255,255,.38);
+  box-shadow: 0 1.5px 0 rgba(255,255,255,.50) inset, 0 0 0 3px rgba(255,255,255,.08), var(--lgl-shadow);
+}
+
+/* ── TOP NAV TABS ─────────────────────────────────────────────── */
+#topNav {
+  display: flex; gap: 3px; padding: 5px;
+  background: rgba(255,255,255,.07);
+  backdrop-filter: blur(40px) saturate(200%); -webkit-backdrop-filter: blur(40px) saturate(200%);
+  border: 1px solid rgba(255,255,255,.14); border-top: none;
+  border-radius: 0 0 18px 18px;
+  box-shadow: 0 1px 0 rgba(255,255,255,.20) inset, var(--lgl-shadow);
+  position: fixed; top: var(--island-h); left: 50%; transform: translateX(-50%);
+  z-index: 495;
+}
+.nt {
+  padding: 6px 16px; border-radius: 12px; border: none;
+  background: transparent; color: rgba(255,255,255,.48);
+  font-family: var(--fb); font-size: 11px; font-weight: 600;
+  letter-spacing: -.01em; cursor: pointer; transition: all .22s var(--lgl-spring);
+  position: relative; overflow: hidden;
+}
+.nt.on {
+  background: var(--lgl-fill-prominent); color: rgba(255,255,255,.96);
+  border: 1px solid rgba(255,255,255,.35);
+  box-shadow: 0 1.5px 0 var(--lgl-spec-top) inset, var(--lgl-shadow-press);
+  font-weight: 700;
+}
+.nt.on::before {
+  content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background: radial-gradient(ellipse 90% 55% at 50% 0%, rgba(255,255,255,.38) 0%, transparent 65%);
+}
+.nt:hover:not(.on) { color: rgba(255,255,255,.78); background: rgba(255,255,255,.07); }
+
+/* ── GLASS SLIDER ─────────────────────────────────────────────── */
+.gl-slider {
+  -webkit-appearance: none; height: 4px; border-radius: 999px;
+  background: rgba(255,255,255,.14);
+  border: 1px solid rgba(255,255,255,.12); outline: none; cursor: pointer;
+  box-shadow: 0 1px 0 rgba(255,255,255,.22) inset, 0 1px 4px rgba(0,0,0,.22);
+  transition: height .13s;
+}
+.gl-slider:hover { height: 6px; }
+.gl-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+  background: radial-gradient(circle at 36% 28%, rgba(255,255,255,.96), rgba(255,255,255,.72) 55%, rgba(200,220,255,.5));
+  box-shadow: 0 1.5px 0 rgba(255,255,255,.90) inset, 0 3px 8px rgba(0,0,0,.38), 0 0 0 1px rgba(255,255,255,.22);
+  cursor: pointer; transition: transform .15s var(--lgl-spring);
+}
+.gl-slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
+
+/* ── LIGHT/DAY MODE global overrides ─────────────────────────── */
+body.day { --lgl-blur: blur(48px) saturate(160%) brightness(1.02); }
+body.day .tb .ic { color: rgba(0,0,30,.75); filter: drop-shadow(0 1px 1px rgba(255,255,255,.5)); }
+body.day .tb.on .ic { color: var(--t-a); filter: drop-shadow(0 0 6px var(--t-a)); }
+body.day #bgC { filter: brightness(1.8) saturate(0.4); }
+body.day .tx3 { color: var(--tx3); }
+
+/* Remove old conflicting rules */
+.hub-tabs { display: none; } /* replaced by .lgl-tabbar */
+.hub-tab { display: none; } /* replaced by .lgl-tab */
+
 </style>
 </head>
 <body>
@@ -854,6 +1337,10 @@ body.rm *,body.rm *::before,body.rm *::after{animation:none!important;transition
   <button class="nt"    data-v="live"     onclick="V('live',this)">Live</button>
   <button class="nt"    data-v="studio"   onclick="V('studio',this)">Studio</button>
   <button class="nt"    data-v="settings" onclick="V('settings',this)">Settings</button>
+  <div style="width:1px;height:20px;background:rgba(255,255,255,.15);margin:0 2px"></div>
+  <div class="day-night-wrap" onclick="toggleDayNight()" title="Day/Night" style="padding:3px 7px 3px 3px">
+    <div class="day-night-icon" id="dnIcon2" style="width:22px;height:22px;font-size:12px">🌙</div>
+  </div>
 </nav>
 
 <!-- ═══ HUB ════════════════════════════════════════════════════════ -->
@@ -871,13 +1358,28 @@ body.rm *,body.rm *::before,body.rm *::after{animation:none!important;transition
         <div class="hub-sub" id="hubSub">Prismatic Radiance Matrix · Connecting…</div>
       </div>
     </div>
-    <button class="hub-x" id="hubX" aria-label="Close">✕</button>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+      <!-- Day/Night Toggle -->
+      <div class="day-night-wrap" onclick="toggleDayNight()" title="Toggle Day/Night">
+        <div class="day-night-icon" id="dnIcon">🌙</div>
+        <span class="day-night-label" id="dnLabel">NIGHT</span>
+      </div>
+      <button class="hub-x" id="hubX" aria-label="Close">✕</button>
+    </div>
   </div>
-  <div class="hub-tabs">
-    <button class="hub-tab on" data-hp="np">🎵 Playing</button>
-    <button class="hub-tab" data-hp="queue">📋 Queue</button>
-    <button class="hub-tab" data-hp="session">📡 Session</button>
-    <button class="hub-tab" data-hp="settings">⚙ Settings</button>
+  <div class="lgl-tabbar" role="tablist">
+    <button class="lgl-tab on" data-hp="np" onclick="hubTab(this,'np')">
+      <span class="t-ico">🎵</span>Playing
+    </button>
+    <button class="lgl-tab" data-hp="queue" onclick="hubTab(this,'queue')">
+      <span class="t-ico">📋</span>Queue
+    </button>
+    <button class="lgl-tab" data-hp="session" onclick="hubTab(this,'session')">
+      <span class="t-ico">📡</span>Session
+    </button>
+    <button class="lgl-tab" data-hp="settings" onclick="hubTab(this,'settings')">
+      <span class="t-ico">⚙</span>Settings
+    </button>
   </div>
   <div class="hub-body">
     <div class="hub-panel on" id="hp-np">
@@ -1186,6 +1688,13 @@ body.rm *,body.rm *::before,body.rm *::after{animation:none!important;transition
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div class="gl" style="padding:13px">
           <div class="stg-sec">Appearance</div>
+          <div class="stg-r">
+            <div><div class="stg-l">Day / Night Mode</div><div class="stg-s">Liquid Glass adapts to light</div></div>
+            <div class="day-night-wrap" onclick="toggleDayNight()" style="padding:3px 10px 3px 4px">
+              <div class="day-night-icon" id="dnIcon3" style="width:24px;height:24px;font-size:13px">🌙</div>
+              <span class="day-night-label" id="dnLabel3" style="font-size:10px">NIGHT</span>
+            </div>
+          </div>
           <div class="stg-r"><div><div class="stg-l">Reduce Motion</div></div><div class="lgl-toggle" id="sRM" onclick="tAcc('rm','sRM')"></div></div>
           <div class="stg-r"><div><div class="stg-l">High Contrast</div></div><div class="lgl-toggle" id="sHC" onclick="tAcc('hc','sHC')"></div></div>
           <div class="stg-sec">Text Scale</div>
@@ -2047,10 +2556,16 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&hubOpen)closeHub()}
 document.addEventListener('click',e=>{
   if(hubOpen&&!el('hub').contains(e.target)&&!el('island').contains(e.target))closeHub();
 });
-document.querySelectorAll('.hub-tab').forEach(t=>t.addEventListener('click',()=>{
-  document.querySelectorAll('.hub-tab').forEach(x=>x.classList.remove('on'));
+// Hub tab switcher — works with new lgl-tabbar
+function hubTab(btn,id){
+  document.querySelectorAll('.lgl-tab').forEach(x=>x.classList.remove('on'));
   document.querySelectorAll('.hub-panel').forEach(x=>x.classList.remove('on'));
-  t.classList.add('on');var p=el('hp-'+t.dataset.hp);if(p)p.classList.add('on');
+  btn.classList.add('on');
+  var p=el('hp-'+id);if(p)p.classList.add('on');
+}
+// Legacy support — also wire old hub-tab clicks if any remain
+document.querySelectorAll('.hub-tab').forEach(t=>t.addEventListener('click',()=>{
+  hubTab(t, t.dataset.hp);
 }));
 function refreshHub(){
   const c=ST.current,pl=c&&!ST.paused;
@@ -2317,6 +2832,29 @@ function boot(){
   // Init bg engine
   try{if(window.CONbotBG)CONbotBG.init(el('bgC'))}catch(err){console.warn('[BG]',err)}
 }
+
+
+// ── DAY / NIGHT TOGGLE ────────────────────────────────────────────
+var isDay = localStorage.getItem('c5day') === '1';
+function toggleDayNight(){
+  isDay = !isDay;
+  localStorage.setItem('c5day', isDay ? '1' : '0');
+  applyDayNight();
+  react(0.5);
+}
+function applyDayNight(){
+  document.body.classList.toggle('day', isDay);
+  var icon = isDay ? '☀️' : '🌙';
+  var label = isDay ? 'DAY' : 'NIGHT';
+  var dn = document.getElementById('dnIcon');  if(dn)  dn.textContent = icon;
+  var dn2= document.getElementById('dnIcon2'); if(dn2) dn2.textContent= icon;
+  var dnl= document.getElementById('dnLabel'); if(dnl) dnl.textContent= label;
+  // Update bg engine mode
+  if(window.CONbotBG) CONbotBG.setMode(isDay ? 'silk' : 'dark');
+  toast(isDay ? '☀️ Day Mode' : '🌙 Night Mode', 'info', 1800);
+}
+// Apply on load
+(function(){ if(isDay) applyDayNight(); })();
 
 window.addEventListener('load',()=>{
   try{if(window.CONbotBG)CONbotBG.init(el('bgC'))}catch{}
