@@ -1,25 +1,20 @@
 {
-  "name": "conbot5",
-  "version": "5.0.0",
-  "private": true,
-  "description": "CONbot5 — Supreme Music Intelligence Platform. Surpasses Rythm.",
-  "scripts": {
-    "dev": "concurrently \"cd services/api && npm run dev\" \"cd services/ws && npm run dev\" \"cd apps/bot && npm run dev\" \"cd apps/web && npm run dev\"",
-    "dev:api": "cd services/api && npm run dev",
-    "dev:ws": "cd services/ws && npm run dev",
-    "dev:bot": "cd apps/bot && npm run dev",
-    "dev:web": "cd apps/web && npm run dev",
-    "build:web": "cd apps/web && npm run build",
-    "start:bot": "cd apps/bot && node src/index.js",
-    "start:api": "cd services/api && node src/index.js",
-    "start:ws": "cd services/ws && node src/index.js",
-    "start:desktop": "cd apps/desktop && npm run dev",
-    "install:all": "npm install && cd services/api && npm install && cd ../../services/ws && npm install && cd ../../apps/bot && npm install && cd ../web && npm install"
-  },
-  "devDependencies": {
-    "concurrently": "^8.2.2"
-  },
+  "name": "conbot5-api",
+  "version": "8.0.0",
+  "description": "CONbot5 REST + SSE + WebSocket API",
+  "main": "src/index.js",
   "engines": {
     "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.3",
+    "play-dl": "^1.9.7",
+    "ws": "^8.17.1"
   }
 }
