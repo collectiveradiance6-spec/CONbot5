@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>CONbot5 Activity</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Exo+2:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   CONbot5 DISCORD ACTIVITY — Sovereign Compact Player
+   Designed for Discord voice channel embedded iframe (560×320)
+   ═══════════════════════════════════════════════════════════════════ */
+:root{
+  --bg0:#09090f;--bg1:#121220;--bg2:#1a1a2e;
+  --a1:#4DDFFF;--a2:#FF2DB8;--a3:#7C4DFF;--a4:#FFB830;
+  --a1r:77,223,255;--a2r:255,45,184;--a3r:124,77,255;
+  --tx:#edf4ff;--tx2:#8ba8d4;--tx3:#384870;
+  --rb:linear-gradient(90deg,#4DDFFF,#7C4DFF,#FF2DB8,#FFB830,#A8FF2D,#4DDFFF);
+  --rsz:400%;
+  --gl-bg:rgba(255,255,255,.04);
+  --gl-border:rgba(255,255,255,.09);
+  --gl-hover:rgba(255,255,255,.08);
+  --fd:"Cinzel",serif;--fb:"Exo 2",sans-serif;--fm:"JetBrains Mono",monospace;
+  --ease:cubic-bezier(.22,.61,.36,1);
+  --espring:cubic-bezier(.34,1.56,.64,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:560px;height:320px;overflow:hidden;background:var(--bg0);color:var(--tx);
+  font-family:var(--fb);font-size:13px;-webkit-font-smoothing:antialiased}
+button{cursor:pointer;font-family:inherit;border:none;background:none}
+
+/* Keyframes */
+@keyframes rbFlow{from{background-position:0%}to{background-position:400%}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes pulse{0%,100%{opacity:.7}50%{opacity:1}}
+@keyframes specAnim{0%,100%{transform:scaleY(.15)}50%{transform:scaleY(1)}}
+@keyframes spinIrid{to{transform:rotate(360deg)}}
+
+/* ── Layout ──────────────────────────────────────────────────────── */
+#stage{
+  position:relative;width:560px;height:320px;
+  display:grid;grid-template-columns:200px 1fr;overflow:hidden}
+
+/* ── Left: Album Art + Identity ──────────────────────────────────── */
+#artPanel{
+  position:relative;padding:20px;display:flex;flex-direction:column;
+  background:linear-gradient(135deg,rgba(255,255,255,.04) 0%,rgba(255,255,255,.01) 100%);
+  border-right:1px solid var(--gl-border)}
+
+/* Background canvas */
+#bgC{position:absolute;inset:0;z-index:0;pointer-events:none}
+#artPanel > *:not(#bgC){position:relative;z-index:1}
+
+/* Album art ring */
+#artRing{
+  width:120px;height:120px;border-radius:50%;
+  position:relative;margin:0 auto 14px;cursor:pointer;
+  animation:bob 8s ease-in-out infinite}
+#artRing::before{
+  content:"";position:absolute;inset:-3px;border-radius:50%;
+  background:conic-gradient(#4DDFFF,#7C4DFF,#FF2DB8,#FFB830,#A8FF2D,#4DDFFF);
+  animation:spinIrid 4s linear infinite;z-index:0}
+#artRing::after{content:"";position:absolute;inset:0;border-radius:50%;
+  background:conic-gradient(#4DDFFF,#7C4DFF,#FF2DB8,#FFB830,#A8FF2D,#4DDFFF);
+  animation:spinIrid 4s linear infinite reverse;opacity:.4;z-index:0}
+#artInner{
+  position:absolute;inset:3px;border-radius:50%;z-index:1;
+  background:radial-gradient(ellipse at 35% 30%,#1a1a38 0%,#09090f 100%);
+  display:flex;align-items:center;justify-content:center;
+  font-size:38px;overflow:hidden}
+#artInner canvas{position:absolute;inset:0;width:100%;height:100%;border-radius:50%}
+
+/* Needle indicator */
+#needle{
+  position:absolute;top:14px;right:14px;width:22px;height:22px;
+  border-radius:50%;background:rgba(255,255,255,.06);border:1px solid var(--gl-border);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  transition:all .2s;z-index:2}
+#needle:hover{background:rgba(var(--a1r),.15);border-color:rgba(var(--a1r),.40)}
+#needle svg{color:var(--a1)}
+
+/* Track info */
+#trackInfo{text-align:center}
+#trackTitle{font-family:var(--fd);font-size:14px;font-weight:700;letter-spacing:.08em;
+  background:var(--rb);background-size:var(--rsz);animation:rbFlow 5s linear infinite;
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
+#trackArtist{font-family:var(--fm);font-size:9px;color:var(--tx2);letter-spacing:.05em;margin-bottom:10px}
+
+/* Waveform mini */
+#miniWave{width:100%;height:24px;border-radius:6px;overflow:hidden;position:relative;cursor:pointer}
+#mwC{width:100%;height:100%}
+
+/* Progress */
+#prog{
+  height:2px;border-radius:1px;background:rgba(255,255,255,.08);cursor:pointer;margin:8px 0 4px;
+  position:relative;overflow:visible}
+#progBar{height:100%;border-radius:1px;
+  background:var(--rb);background-size:var(--rsz);animation:rbFlow 4s linear infinite;width:45%}
+#progThumb{position:absolute;top:50%;transform:translate(-50%,-50%);
+  width:8px;height:8px;border-radius:50%;background:#fff;
+  box-shadow:0 0 6px rgba(var(--a1r),.6);left:45%;pointer-events:none}
+#times{display:flex;justify-content:space-between;font-family:var(--fm);font-size:8px;color:var(--tx3)}
+
+/* ── Right: Controls + Users ─────────────────────────────────────── */
+#controlPanel{
+  padding:16px;display:flex;flex-direction:column;gap:10px}
+
+/* Playback buttons */
+#playRow{display:flex;align-items:center;justify-content:center;gap:10px}
+
+/* Iridescent bubble btn */
+.ibtn{
+  position:relative;display:flex;align-items:center;justify-content:center;
+  border-radius:50%;cursor:pointer;overflow:hidden;transition:all .20s var(--ease);
+  background:radial-gradient(ellipse at 35% 25%,rgba(255,255,255,.16),rgba(0,0,0,.82));
+  flex-shrink:0}
+.ibtn::before{content:"";position:absolute;inset:0;border-radius:50%;
+  background:conic-gradient(rgba(var(--a1r),.60),rgba(var(--a3r),.50),rgba(var(--a2r),.60),rgba(77,100,255,.45),rgba(var(--a1r),.60));
+  animation:spinIrid 3.5s linear infinite;opacity:.40;mix-blend-mode:screen}
+.ibtn::after{content:"";position:absolute;inset:2px;border-radius:50%;
+  background:radial-gradient(ellipse at 32% 22%,rgba(255,255,255,.28),transparent 65%);pointer-events:none}
+.ibtn.sm{width:34px;height:34px;box-shadow:0 0 0 1.5px rgba(var(--a1r),.28),0 0 0 2.5px rgba(var(--a2r),.14),
+  inset 0 1px 0 rgba(255,255,255,.28),0 3px 10px rgba(0,0,0,.50)}
+.ibtn.md{width:46px;height:46px;box-shadow:0 0 0 1.5px rgba(var(--a1r),.38),0 0 0 2.5px rgba(var(--a2r),.20),
+  inset 0 1.5px 0 rgba(255,255,255,.32),0 4px 16px rgba(0,0,0,.55),0 0 32px rgba(var(--a1r),.05)}
+.ibtn.lg{width:56px;height:56px;box-shadow:0 0 0 2px rgba(var(--a1r),.45),0 0 0 3.5px rgba(var(--a2r),.22),
+  0 0 0 5px rgba(var(--a3r),.08),inset 0 2px 0 rgba(255,255,255,.36),
+  0 6px 20px rgba(0,0,0,.60),0 0 50px rgba(var(--a1r),.08)}
+.ibtn:hover{transform:scale(1.10);}
+.ibtn:hover::before{opacity:.60;animation-duration:2s}
+.ibtn:active{transform:scale(.95)}
+.ibtn svg{position:relative;z-index:1;filter:drop-shadow(0 0 3px rgba(var(--a1r),.5))}
+
+/* Glass mini button */
+.gbtn{
+  width:28px;height:28px;border-radius:50%;border:1px solid var(--gl-border);
+  background:var(--gl-bg);backdrop-filter:blur(10px);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  color:var(--tx2);transition:all .16s;position:relative;overflow:hidden}
+.gbtn::before{content:"";position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(ellipse 70% 40% at 30% 15%,rgba(255,255,255,.20),transparent);opacity:.7}
+.gbtn:hover{border-color:rgba(var(--a1r),.35);color:var(--a1);background:rgba(var(--a1r),.08);transform:scale(1.08)}
+.gbtn.on{color:var(--a1);border-color:rgba(var(--a1r),.35)}
+
+/* Volume */
+#volRow{display:flex;align-items:center;gap:8px}
+#volLabel{font-size:12px;color:var(--tx2)}
+#volSlider{flex:1;height:2px;-webkit-appearance:none;appearance:none;border-radius:1px;
+  background:rgba(255,255,255,.10);cursor:pointer;outline:none}
+#volSlider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;
+  background:radial-gradient(ellipse at 35% 30%,rgba(255,255,255,.5),var(--a1));
+  box-shadow:0 0 8px rgba(var(--a1r),.4);cursor:pointer}
+#volPct{font-family:var(--fm);font-size:9px;color:var(--tx2);width:24px;text-align:right}
+
+/* Spectrum mini */
+#specRow{display:flex;align-items:flex-end;gap:1.5px;height:28px;padding:2px 0}
+.sbar{width:5px;border-radius:2px 2px 0 0;
+  background:linear-gradient(to top,var(--a1),var(--a3),var(--a2));
+  transform-origin:bottom;animation:specAnim ease-in-out infinite}
+
+/* Live users */
+#usersSection{flex:1;overflow:hidden}
+.us-header{display:flex;align-items:center;gap:5px;margin-bottom:6px}
+.us-dot{width:6px;height:6px;border-radius:50%;background:#00E5A0;
+  box-shadow:0 0 6px rgba(0,229,160,.6);animation:pulse 2s infinite}
+.us-label{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tx2)}
+.us-count{margin-left:auto;font-family:var(--fm);font-size:9px;color:var(--tx3)}
+.user-row{display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.03)}
+.user-row:last-child{border-bottom:none}
+.uav{width:24px;height:24px;border-radius:50%;flex-shrink:0;
+  background:var(--rb);background-size:var(--rsz);animation:rbFlow 8s linear infinite;
+  display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;
+  color:#fff;position:relative}
+.uav.live::after{content:"";position:absolute;bottom:-1px;right:-1px;
+  width:7px;height:7px;border-radius:50%;background:#00E5A0;
+  border:1.5px solid var(--bg0);box-shadow:0 0 4px rgba(0,229,160,.6)}
+.uname{font-size:10px;font-weight:600;letter-spacing:.02em}
+.ustat{font-family:var(--fm);font-size:8px;color:var(--tx3)}
+.uvc{margin-left:auto;font-family:var(--fm);font-size:8px;color:var(--a1);
+  background:rgba(var(--a1r),.08);padding:1px 5px;border-radius:3px}
+
+/* Mood badge */
+#moodBadge{
+  align-self:flex-start;padding:3px 10px;border-radius:var(--r-pill,999px);
+  border:1px solid rgba(var(--a1r),.25);background:rgba(var(--a1r),.08);
+  font-family:var(--fm);font-size:8px;color:var(--a1);letter-spacing:.06em;text-transform:uppercase}
+
+/* Divider */
+.divider{height:1px;background:rgba(255,255,255,.05);flex-shrink:0}
+
+/* Grain */
+#grain{position:absolute;inset:0;z-index:999;pointer-events:none;opacity:.016;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.74' numOctaves='6' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:240px;mix-blend-mode:screen}
+</style>
+</head>
+<body>
+<div id="stage">
+<div id="grain"></div>
+
+<!-- ── Left Panel ──────────────────────────────────── -->
+<div id="artPanel">
+  <canvas id="bgC"></canvas>
+
+  <!-- Needle -->
+  <div id="needle">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="9"/>
+    </svg>
+  </div>
+
+  <!-- Art ring -->
+  <div id="artRing">
+    <div id="artInner">
+      <canvas id="artC" width="114" height="114"></canvas>
+    </div>
+  </div>
+
+  <!-- Info -->
+  <div id="trackInfo">
+    <div id="trackTitle">Eclipse Horizon</div>
+    <div id="trackArtist">Astral Nomad</div>
+  </div>
+
+  <!-- Mini waveform -->
+  <div id="miniWave">
+    <canvas id="mwC"></canvas>
+  </div>
+
+  <!-- Progress -->
+  <div id="prog" onclick="seek(event)">
+    <div id="progBar"></div>
+    <div id="progThumb"></div>
+  </div>
+  <div id="times"><span id="tel">2:37</span><span id="tot">5:48</span></div>
+</div>
+
+<!-- ── Right Panel ─────────────────────────────────── -->
+<div id="controlPanel">
+
+  <!-- Mood badge -->
+  <div id="moodBadge">🌊 Chill Mode</div>
+
+  <!-- Play buttons -->
+  <div id="playRow">
+    <div class="gbtn on" onclick="this.classList.toggle('on')" title="Shuffle">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/>
+        <polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/>
+      </svg>
+    </div>
+    <div class="ibtn sm" onclick="prevTrack()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round">
+        <polygon points="19 20 9 12 19 4"/><line x1="5" y1="19" x2="5" y2="5"/>
+      </svg>
+    </div>
+    <div class="ibtn lg" id="playBtn" onclick="togglePlay()">
+      <svg id="pIcon" width="20" height="20" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21"/></svg>
+    </div>
+    <div class="ibtn sm" onclick="nextTrack()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round">
+        <polygon points="5 4 15 12 5 20"/><line x1="19" y1="4" x2="19" y2="20"/>
+      </svg>
+    </div>
+    <div class="gbtn" onclick="this.classList.toggle('on')" title="Repeat">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+        <polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Volume -->
+  <div id="volRow">
+    <span id="volIcon" style="font-size:12px;cursor:pointer;color:var(--tx2)" onclick="mute()">🔊</span>
+    <input type="range" id="volSlider" min="0" max="100" value="75" oninput="setVol(this.value)"/>
+    <span id="volPct">75%</span>
+  </div>
+
+  <!-- Spectrum -->
+  <div id="specRow">
+    <!-- built by JS -->
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Live users -->
+  <div id="usersSection">
+    <div class="us-header">
+      <div class="us-dot"></div>
+      <span class="us-label">Voice Channel</span>
+      <span class="us-count">5 / 29 shown</span>
+    </div>
+    <div id="userList">
+      <div class="user-row"><div class="uav live">PN</div><div><div class="uname">PixelNomad</div><div class="ustat">Listening</div></div><div class="uvc">♪</div></div>
+      <div class="user-row"><div class="uav live" style="animation-delay:.4s">LW</div><div><div class="uname">LunarWave</div><div class="ustat">Joined now</div></div><div class="uvc">♪</div></div>
+      <div class="user-row"><div class="uav live" style="animation-delay:.8s">SC</div><div><div class="uname">StarChild</div><div class="ustat">Queued Neon Drift</div></div><div class="uvc">♪</div></div>
+      <div class="user-row"><div class="uav" style="animation-delay:1.2s">EB</div><div><div class="uname">EchoBoom</div><div class="ustat">Away</div></div></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+const QUEUE = [
+  {title:'Eclipse Horizon', artist:'Astral Nomad', secs:348},
+  {title:'Chill Cosmic Vibes', artist:'PixelDrift', secs:252},
+  {title:'Neon Drift', artist:'SynthWave X', secs:225},
+  {title:'Midnight Drive', artist:'Lunar Collective', secs:245},
+];
+const S = {playing:false, idx:0, elapsed:157, vol:75};
+
+// ── Background canvas ─────────────────────────────────────────────
+const bgC = document.getElementById('bgC');
+const bgCtx = bgC.getContext('2d');
+bgC.width = 200; bgC.height = 320;
+(function bgRender(t) {
+  bgCtx.clearRect(0, 0, 200, 320);
+  const orbs = [
+    {x:100,y:80,r:80,c:'77,223,255'},
+    {x:40,y:220,r:60,c:'124,77,255'},
+    {x:160,y:260,r:70,c:'255,45,184'},
+  ];
+  orbs.forEach(o => {
+    const px = o.x + Math.sin(t * .0004 + o.r) * 15;
+    const py = o.y + Math.cos(t * .0003 + o.r) * 12;
+    const g = bgCtx.createRadialGradient(px, py, 0, px, py, o.r);
+    g.addColorStop(0, `rgba(${o.c},.16)`);
+    g.addColorStop(1, 'transparent');
+    bgCtx.fillStyle = g;
+    bgCtx.fillRect(0, 0, 200, 320);
+  });
+  requestAnimationFrame(t => bgRender(t));
+})(0);
+
+// ── Art canvas ────────────────────────────────────────────────────
+const artC = document.getElementById('artC');
+const artCtx = artC.getContext('2d');
+(function artRender(t) {
+  artCtx.clearRect(0, 0, 114, 114);
+  // Rotating iridescent disc pattern
+  const cx = 57, cy = 57;
+  for (let r = 52; r > 5; r -= 6) {
+    artCtx.beginPath();
+    artCtx.arc(cx, cy, r, 0, Math.PI * 2);
+    const hue = (t * .05 + (52 - r) * 5) % 360;
+    artCtx.strokeStyle = `hsla(${hue}, 80%, 60%, ${.12 + (52 - r) / 52 * .08})`;
+    artCtx.lineWidth = 2;
+    artCtx.stroke();
+  }
+  // Center glow
+  const g = artCtx.createRadialGradient(cx, cy, 0, cx, cy, 30);
+  g.addColorStop(0, 'rgba(77,223,255,.25)');
+  g.addColorStop(.5, 'rgba(124,77,255,.10)');
+  g.addColorStop(1, 'transparent');
+  artCtx.fillStyle = g;
+  artCtx.fillRect(0, 0, 114, 114);
+  // Music note icon
+  artCtx.font = '28px serif';
+  artCtx.textAlign = 'center';
+  artCtx.textBaseline = 'middle';
+  artCtx.globalAlpha = .55;
+  artCtx.fillStyle = '#fff';
+  artCtx.fillText('♫', cx, cy);
+  artCtx.globalAlpha = 1;
+  requestAnimationFrame(t => artRender(t));
+})(0);
+
+// ── Mini waveform ─────────────────────────────────────────────────
+const mw = document.getElementById('mwC');
+const mwCtx = mw.getContext('2d');
+(function mwResize() {
+  mw.width = mw.offsetWidth * 2;
+  mw.height = mw.offsetHeight * 2;
+  mwCtx.scale(2, 2);
+})();
+(function mwRender(t) {
+  const W = mw.offsetWidth, H = mw.offsetHeight;
+  mwCtx.clearRect(0, 0, W, H);
+  const BARS = 60;
+  const bw = W / BARS;
+  const mid = H / 2;
+  for (let i = 0; i < BARS; i++) {
+    const amp = S.playing ?
+      (Math.abs(Math.sin(t * .08 + i * .3)) * .7 + Math.random() * .15) :
+      (Math.abs(Math.sin(t * .02 + i * .28)) * .25 + .1);
+    const h = amp * mid * .85 + 2;
+    const pct = i / BARS;
+    const colors = ['#4DDFFF','#7C4DFF','#FF2DB8'];
+    const ci = Math.floor(pct * 2);
+    mwCtx.fillStyle = colors[ci] + 'cc';
+    mwCtx.beginPath();
+    mwCtx.roundRect(i * bw + .5, mid - h, bw - 1, h * 2, 1.5);
+    mwCtx.fill();
+  }
+  requestAnimationFrame(t => mwRender(t));
+})(0);
+
+// ── Spectrum bars ─────────────────────────────────────────────────
+const specRow = document.getElementById('specRow');
+const SBARS = 22;
+for (let i = 0; i < SBARS; i++) {
+  const b = document.createElement('div');
+  b.className = 'sbar';
+  b.style.animationDuration = (.5 + Math.random() * .6) + 's';
+  b.style.animationDelay = (i / SBARS * .8) + 's';
+  b.style.height = '6px';
+  specRow.appendChild(b);
+}
+const sbars = specRow.querySelectorAll('.sbar');
+(function specUpdate(t) {
+  sbars.forEach((b, i) => {
+    const h = S.playing ? (5 + Math.abs(Math.sin(t * .1 + i * .4)) * 18 + Math.random() * 4) : (3 + Math.sin(t * .02 + i * .35) * 4 + 4);
+    b.style.height = Math.min(h, 26) + 'px';
+  });
+  setTimeout(() => requestAnimationFrame(t => specUpdate(t)), 60);
+})(0);
+
+// ── Progress ──────────────────────────────────────────────────────
+function updateProgress() {
+  const track = QUEUE[S.idx];
+  const pct = Math.min(100, (S.elapsed / track.secs) * 100);
+  document.getElementById('progBar').style.width = pct + '%';
+  document.getElementById('progThumb').style.left = pct + '%';
+  const m = Math.floor(S.elapsed / 60), sec = S.elapsed % 60;
+  document.getElementById('tel').textContent = m + ':' + String(sec).padStart(2,'0');
+  const tm = Math.floor(track.secs / 60), ts = track.secs % 60;
+  document.getElementById('tot').textContent = tm + ':' + String(ts).padStart(2,'0');
+}
+setInterval(() => { if (S.playing) { S.elapsed++; if (S.elapsed >= QUEUE[S.idx].secs) nextTrack(); else updateProgress(); } }, 1000);
+updateProgress();
+
+function seek(e) {
+  const r = e.currentTarget.getBoundingClientRect();
+  S.elapsed = Math.round((e.clientX - r.left) / r.width * QUEUE[S.idx].secs);
+  updateProgress();
+}
+
+// ── Controls ──────────────────────────────────────────────────────
+function togglePlay() {
+  S.playing = !S.playing;
+  const icon = document.getElementById('pIcon');
+  icon.innerHTML = S.playing
+    ? '<rect x="6" y="4" width="4" height="16" rx="1" fill="white"/><rect x="14" y="4" width="4" height="16" rx="1" fill="white"/>'
+    : '<polygon points="5 3 19 12 5 21" fill="white"/>';
+}
+function nextTrack() {
+  S.idx = (S.idx + 1) % QUEUE.length; S.elapsed = 0;
+  document.getElementById('trackTitle').textContent = QUEUE[S.idx].title;
+  document.getElementById('trackArtist').textContent = QUEUE[S.idx].artist;
+  updateProgress();
+}
+function prevTrack() {
+  if (S.elapsed > 3) { S.elapsed = 0; updateProgress(); return; }
+  S.idx = (S.idx - 1 + QUEUE.length) % QUEUE.length; S.elapsed = 0;
+  document.getElementById('trackTitle').textContent = QUEUE[S.idx].title;
+  document.getElementById('trackArtist').textContent = QUEUE[S.idx].artist;
+  updateProgress();
+}
+function setVol(v) {
+  S.vol = v;
+  document.getElementById('volPct').textContent = v + '%';
+  document.getElementById('volIcon').textContent = v == 0 ? '🔇' : v < 40 ? '🔉' : '🔊';
+}
+function mute() {
+  const sl = document.getElementById('volSlider');
+  sl.value = sl.value > 0 ? 0 : S.vol;
+  setVol(sl.value);
+}
+
+// ── Discord SDK Integration ───────────────────────────────────────
+// When deployed as a Discord Activity, this connects via the Embedded App SDK
+async function initDiscordActivity() {
+  try {
+    const { DiscordSDK } = await import('https://www.unpkg.com/@discord/embedded-app-sdk@latest/output/index.mjs');
+    const sdk = new DiscordSDK(window.DISCORD_CLIENT_ID || '');
+    await sdk.ready();
+
+    const { code } = await sdk.commands.authorize({
+      client_id: sdk.clientId,
+      response_type: 'code',
+      state: '',
+      prompt: 'none',
+      scope: ['identify', 'guilds'],
+    });
+
+    const tokenRes = await fetch('/.proxy/api/activity/token', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({code}),
+    });
+    const {access_token} = await tokenRes.json();
+
+    const auth = await sdk.commands.authenticate({access_token});
+
+    // Subscribe to voice state updates
+    sdk.subscribe('VOICE_STATE_UPDATE', ({user, voice_state}) => {
+      console.log('[Activity] Voice state:', user.username, voice_state);
+    }, {channel_id: sdk.channelId});
+
+    console.log('[CONbot5 Activity] Authenticated as:', auth.user.username);
+  } catch(e) {
+    console.log('[CONbot5 Activity] Running in standalone mode:', e.message);
+  }
+}
+initDiscordActivity();
+</script>
+</body>
+</html>

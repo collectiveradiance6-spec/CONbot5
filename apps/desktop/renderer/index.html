@@ -3,29 +3,475 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' http://localhost:* data: blob:; img-src * data: blob:; font-src *; connect-src *;"/>
-<title>CONbot5 Supreme</title>
-<!-- Load full web dashboard from parent directory -->
-<script>
-// Redirect to web dashboard with Electron context
-window.ENV_API_URL  = 'http://localhost:3020';
-window.ENV_GUILD_ID = '';
-
-// Bridge Electron IPC to web dashboard commands
-if (window.CONbot5) {
-  window.addEventListener('DOMContentLoaded', ()=>{
-    window.CONbot5.getConfig().then(cfg=>{
-      window.ENV_GUILD_ID = cfg.GUILD_ID;
-      window.ENV_API_URL  = cfg.API_URL;
-    });
-  });
+<meta http-equiv="Content-Security-Policy"
+  content="default-src 'self' 'unsafe-inline' http://localhost:* data: blob:; img-src * data: blob:; font-src *; connect-src *; script-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com;"/>
+<title>CONbot5 Supreme — Desktop</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   CONbot5 DESKTOP — Native Electron Frame + Tray Controls
+   ═══════════════════════════════════════════════════════════════════ */
+:root{
+  --titlebar-h:32px;
+  --statusbar-h:24px;
+  --a1:#4DDFFF;--a2:#FF2DB8;--tx:#EDF4FF;--tx2:#7A94C4;--tx3:#384870;
+  --bg0:#010209;--bg1:#060916;
+  --gl:rgba(255,255,255,.05);--gb:rgba(255,255,255,.08);
+  --ease:cubic-bezier(.22,.61,.36,1);
+  --rb:linear-gradient(90deg,#4DDFFF,#7C4DFF,#FF2DB8,#FFB830,#A8FF2D,#4DDFFF);
 }
-</script>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--bg0);color:var(--tx);
+  font-family:"Exo 2","Segoe UI",sans-serif;font-size:13px;
+  -webkit-font-smoothing:antialiased;user-select:none}
+button{cursor:pointer;font-family:inherit;border:none;background:none}
+
+@keyframes rbFlow{from{background-position:0%}to{background-position:400%}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes pulse{0%,100%{opacity:.7}50%{opacity:1}}
+
+/* ── Custom Titlebar ─────────────────────────────────────────────── */
+#titlebar{
+  height:var(--titlebar-h);
+  background:rgba(3,5,16,.92);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-bottom:1px solid rgba(255,255,255,.05);
+  display:flex;align-items:center;
+  -webkit-app-region:drag;
+  position:fixed;top:0;left:0;right:0;z-index:9999;
+  padding:0 8px}
+
+.tb-logo{
+  display:flex;align-items:center;gap:8px;
+  font-size:11px;font-weight:700;letter-spacing:.12em;
+  background:var(--rb);background-size:400%;animation:rbFlow 5s linear infinite;
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  -webkit-app-region:no-drag}
+.tb-logo svg{-webkit-text-fill-color:initial;color:var(--a1);flex-shrink:0}
+
+.tb-spacer{flex:1}
+
+/* Quick controls in titlebar */
+.tb-controls{display:flex;align-items:center;gap:4px;-webkit-app-region:no-drag}
+.tb-btn{
+  width:28px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+  color:var(--tx2);font-size:11px;transition:all .14s;cursor:pointer;
+  -webkit-app-region:no-drag}
+.tb-btn:hover{background:var(--gl);color:var(--tx)}
+.tb-btn.active{color:var(--a1)}
+
+/* Window controls */
+.win-controls{display:flex;align-items:center;gap:3px;margin-left:8px;-webkit-app-region:no-drag}
+.win-btn{
+  width:12px;height:12px;border-radius:50%;border:none;cursor:pointer;
+  transition:filter .14s;display:flex;align-items:center;justify-content:center}
+.win-btn:hover{filter:brightness(1.3)}
+.win-btn svg{opacity:0;transition:opacity .14s}
+.win-btn:hover svg{opacity:1}
+.win-close{background:#FF5F57}
+.win-min{background:#FEBC2E}
+.win-max{background:#28C840}
+
+/* ── Sidebar ─────────────────────────────────────────────────────── */
+#sidebar-nav{
+  position:fixed;top:var(--titlebar-h);left:0;bottom:var(--statusbar-h);
+  width:52px;background:rgba(3,5,16,.70);backdrop-filter:blur(20px);
+  border-right:1px solid rgba(255,255,255,.04);
+  display:flex;flex-direction:column;align-items:center;
+  padding:10px 0;gap:4px;z-index:100}
+.nav-btn{
+  width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+  color:var(--tx3);font-size:16px;cursor:pointer;transition:all .18s var(--ease);
+  position:relative;overflow:hidden}
+.nav-btn::before{content:"";position:absolute;inset:0;border-radius:inherit;
+  background:radial-gradient(ellipse at 50% 0%,rgba(255,255,255,.14),transparent);
+  opacity:0;transition:opacity .18s}
+.nav-btn:hover{color:var(--tx2);background:var(--gl)}
+.nav-btn:hover::before{opacity:1}
+.nav-btn.active{color:var(--a1);background:rgba(77,223,255,.08);}
+.nav-btn.active::before{opacity:1}
+.nav-tooltip{
+  position:absolute;left:calc(100% + 6px);top:50%;transform:translateY(-50%);
+  background:rgba(12,18,40,.95);border:1px solid var(--gb);border-radius:6px;
+  padding:4px 8px;font-size:10px;font-weight:600;white-space:nowrap;
+  pointer-events:none;opacity:0;transition:opacity .16s;z-index:999}
+.nav-btn:hover .nav-tooltip{opacity:1}
+.nav-divider{width:28px;height:1px;background:rgba(255,255,255,.06);margin:4px 0}
+.nav-spacer{flex:1}
+
+/* ── Main content area ───────────────────────────────────────────── */
+#main{
+  position:fixed;
+  top:var(--titlebar-h);left:52px;right:0;bottom:var(--statusbar-h);
+  overflow:hidden}
+#webFrame{width:100%;height:100%;border:none;background:var(--bg0)}
+
+/* ── Tray Bar (now-playing quick bar) ────────────────────────────── */
+#tray-bar{
+  position:fixed;bottom:0;left:0;right:0;height:var(--statusbar-h);
+  background:rgba(3,5,16,.95);backdrop-filter:blur(20px);
+  border-top:1px solid rgba(255,255,255,.04);
+  display:flex;align-items:center;padding:0 12px;gap:10px;z-index:9999}
+.tray-now{display:flex;align-items:center;gap:6px;flex:1;min-width:0}
+.tray-dot{width:5px;height:5px;border-radius:50%;background:var(--a1);
+  box-shadow:0 0 5px rgba(77,223,255,.7);animation:pulse 2s infinite;flex-shrink:0}
+.tray-title{font-size:10px;font-weight:600;letter-spacing:.03em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tray-sep{color:var(--tx3);font-size:9px}
+.tray-artist{font-size:10px;color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tray-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.tray-btn{font-size:11px;color:var(--tx2);cursor:pointer;transition:color .14s;padding:2px 4px;border-radius:4px}
+.tray-btn:hover{color:var(--tx);background:var(--gl)}
+.tray-btn.active{color:var(--a1)}
+.tray-progress{flex:1;max-width:160px;height:2px;background:rgba(255,255,255,.08);
+  border-radius:1px;cursor:pointer;overflow:hidden}
+.tray-bar-fill{height:100%;background:var(--rb);background-size:400%;
+  animation:rbFlow 4s linear infinite;width:45%;transition:width .8s linear}
+.tray-time{font-family:"JetBrains Mono","Consolas",monospace;font-size:9px;color:var(--tx3);
+  letter-spacing:.04em;white-space:nowrap}
+.tray-guild{display:flex;align-items:center;gap:4px}
+.tray-guild-dot{width:5px;height:5px;border-radius:50%;background:#00E5A0;
+  box-shadow:0 0 4px rgba(0,229,160,.6);animation:pulse 3s infinite}
+.tray-guild-name{font-size:9px;color:var(--tx3);letter-spacing:.03em}
+
+/* ── Notification overlay ────────────────────────────────────────── */
+#notif{
+  position:fixed;top:calc(var(--titlebar-h) + 10px);right:12px;
+  max-width:300px;z-index:9999;
+  display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.notif-card{
+  background:rgba(6,9,22,.90);border:1px solid var(--gb);border-radius:12px;
+  padding:10px 14px;display:flex;align-items:flex-start;gap:10px;
+  backdrop-filter:blur(20px);animation:fadeIn .3s var(--ease);pointer-events:all;
+  box-shadow:0 4px 24px rgba(0,0,0,.50),0 0 0 1px rgba(255,255,255,.04)}
+.notif-icon{font-size:18px;flex-shrink:0}
+.notif-text{flex:1;min-width:0}
+.notif-title{font-size:11px;font-weight:700;letter-spacing:.04em;margin-bottom:2px}
+.notif-body{font-size:10px;color:var(--tx2)}
+.notif-close{font-size:11px;color:var(--tx3);cursor:pointer;flex-shrink:0;
+  padding:1px 4px;border-radius:4px;transition:all .14s}
+.notif-close:hover{color:var(--tx);background:var(--gl)}
+
+/* ── Keyboard shortcut overlay ───────────────────────────────────── */
+#shortcuts{
+  position:fixed;inset:0;z-index:9998;background:rgba(1,2,9,.85);
+  backdrop-filter:blur(20px);display:none;align-items:center;justify-content:center;
+  animation:fadeIn .2s var(--ease)}
+#shortcuts.visible{display:flex}
+.shortcuts-card{
+  background:rgba(6,9,22,.95);border:1px solid var(--gb);border-radius:20px;
+  padding:28px 32px;max-width:480px;width:100%;
+  box-shadow:0 24px 80px rgba(0,0,0,.70)}
+.sc-title{font-size:16px;font-weight:700;letter-spacing:.10em;
+  background:var(--rb);background-size:400%;animation:rbFlow 5s linear infinite;
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  margin-bottom:20px}
+.sc-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sc-row{display:flex;align-items:center;justify-content:space-between;
+  padding:7px 10px;border-radius:8px;background:rgba(255,255,255,.03)}
+.sc-action{font-size:11px;color:var(--tx2)}
+.sc-key{font-family:"JetBrains Mono","Consolas",monospace;font-size:10px;color:var(--a1);
+  background:rgba(77,223,255,.08);border:1px solid rgba(77,223,255,.18);
+  border-radius:5px;padding:2px 7px;letter-spacing:.05em}
+.sc-close-btn{width:100%;margin-top:16px;padding:9px;border-radius:10px;
+  background:var(--gl);border:1px solid var(--gb);color:var(--tx2);font-size:12px;
+  transition:all .16s;cursor:pointer;font-family:inherit}
+.sc-close-btn:hover{background:rgba(77,223,255,.08);border-color:rgba(77,223,255,.25);color:var(--a1)}
+</style>
 </head>
 <body>
+
+<!-- ── Custom Titlebar ────────────────────────────────────────────── -->
+<div id="titlebar">
+  <div class="tb-logo">
+    <svg width="14" height="14" viewBox="0 0 18 18" fill="none">
+      <circle cx="9" cy="9" r="6.5" stroke="currentColor" stroke-width="1.5"/>
+      <circle cx="9" cy="9" r="2.5" fill="currentColor"/>
+      <line x1="9" y1="2.5" x2="9" y2=".5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    CONBOT5 SUPREME
+  </div>
+
+  <div class="tb-spacer"></div>
+
+  <!-- Quick controls -->
+  <div class="tb-controls">
+    <div class="tb-btn active" id="tb-play" onclick="tbarPlay()" title="Play/Pause">⏸</div>
+    <div class="tb-btn" onclick="tbarNext()" title="Next">⏭</div>
+    <div class="tb-btn" onclick="toggleShortcuts()" title="Shortcuts (?)">⌨</div>
+    <div class="tb-btn" id="tb-mute" onclick="tbarMute()" title="Mute">🔊</div>
+    <div class="tb-btn" onclick="openSettings()" title="Settings">⚙</div>
+  </div>
+
+  <!-- Window controls -->
+  <div class="win-controls">
+    <button class="win-btn win-min" onclick="winMin()">
+      <svg width="8" height="1" viewBox="0 0 8 1"><line x1="0" y1=".5" x2="8" y2=".5" stroke="rgba(0,0,0,.5)" stroke-width="1.5"/></svg>
+    </button>
+    <button class="win-btn win-max" onclick="winMax()">
+      <svg width="8" height="8" viewBox="0 0 8 8"><rect x=".5" y=".5" width="7" height="7" rx="1" fill="none" stroke="rgba(0,0,0,.5)" stroke-width="1"/></svg>
+    </button>
+    <button class="win-btn win-close" onclick="winClose()">
+      <svg width="8" height="8" viewBox="0 0 8 8"><line x1="1" y1="1" x2="7" y2="7" stroke="rgba(0,0,0,.5)" stroke-width="1.5"/><line x1="7" y1="1" x2="1" y2="7" stroke="rgba(0,0,0,.5)" stroke-width="1.5"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- ── Sidebar Navigation ─────────────────────────────────────────── -->
+<div id="sidebar-nav">
+  <div class="nav-btn active" onclick="navTo('dashboard')" title="Dashboard">
+    🏠<span class="nav-tooltip">Dashboard</span>
+  </div>
+  <div class="nav-btn" onclick="navTo('library')" title="Library">
+    📚<span class="nav-tooltip">Music Library</span>
+  </div>
+  <div class="nav-btn" onclick="navTo('queue')" title="Queue">
+    📋<span class="nav-tooltip">Queue</span>
+  </div>
+  <div class="nav-btn" onclick="navTo('live')" title="Live">
+    📡<span class="nav-tooltip">Live Users</span>
+  </div>
+  <div class="nav-divider"></div>
+  <div class="nav-btn" onclick="navTo('studio')" title="Studio">
+    🎛<span class="nav-tooltip">Studio / EQ</span>
+  </div>
+  <div class="nav-btn" onclick="navTo('analytics')" title="Analytics">
+    📊<span class="nav-tooltip">Analytics</span>
+  </div>
+  <div class="nav-spacer"></div>
+  <div class="nav-divider"></div>
+  <div class="nav-btn" onclick="navTo('admin')" title="Admin">
+    👑<span class="nav-tooltip">Admin Panel</span>
+  </div>
+  <div class="nav-btn" onclick="navTo('settings')" title="Settings">
+    ⚙<span class="nav-tooltip">Settings</span>
+  </div>
+</div>
+
+<!-- ── Web Frame ──────────────────────────────────────────────────── -->
+<div id="main">
+  <iframe id="webFrame" src="../web/index.html" allowfullscreen></iframe>
+</div>
+
+<!-- ── Status Bar ────────────────────────────────────────────────── -->
+<div id="tray-bar">
+  <div class="tray-now">
+    <div class="tray-dot"></div>
+    <span class="tray-title" id="tb-title">Eclipse Horizon</span>
+    <span class="tray-sep">·</span>
+    <span class="tray-artist" id="tb-artist">Astral Nomad</span>
+  </div>
+  <div class="tray-progress" onclick="seek(event)"><div class="tray-bar-fill" id="tb-fill"></div></div>
+  <span class="tray-time" id="tb-time">2:37 / 5:48</span>
+  <div class="tray-right">
+    <span class="tray-btn" onclick="tbarPrev()">⏮</span>
+    <span class="tray-btn active" id="tb-playBtn" onclick="tbarPlay()">⏸</span>
+    <span class="tray-btn" onclick="tbarNext()">⏭</span>
+    <span class="tray-btn" onclick="tbarLike()" id="tb-like">♡</span>
+  </div>
+  <div class="tray-guild">
+    <div class="tray-guild-dot"></div>
+    <span class="tray-guild-name">TheConclave Dominion</span>
+  </div>
+</div>
+
+<!-- ── Notification Container ────────────────────────────────────── -->
+<div id="notif"></div>
+
+<!-- ── Keyboard Shortcuts ─────────────────────────────────────────── -->
+<div id="shortcuts">
+  <div class="shortcuts-card">
+    <div class="sc-title">KEYBOARD SHORTCUTS</div>
+    <div class="sc-grid">
+      <div class="sc-row"><span class="sc-action">Play / Pause</span><kbd class="sc-key">Space</kbd></div>
+      <div class="sc-row"><span class="sc-action">Next Track</span><kbd class="sc-key">→</kbd></div>
+      <div class="sc-row"><span class="sc-action">Prev Track</span><kbd class="sc-key">←</kbd></div>
+      <div class="sc-row"><span class="sc-action">Volume Up</span><kbd class="sc-key">↑</kbd></div>
+      <div class="sc-row"><span class="sc-action">Volume Down</span><kbd class="sc-key">↓</kbd></div>
+      <div class="sc-row"><span class="sc-action">Mute / Unmute</span><kbd class="sc-key">M</kbd></div>
+      <div class="sc-row"><span class="sc-action">Shuffle</span><kbd class="sc-key">S</kbd></div>
+      <div class="sc-row"><span class="sc-action">Loop</span><kbd class="sc-key">L</kbd></div>
+      <div class="sc-row"><span class="sc-action">Search</span><kbd class="sc-key">Ctrl+F</kbd></div>
+      <div class="sc-row"><span class="sc-action">Settings</span><kbd class="sc-key">Ctrl+,</kbd></div>
+      <div class="sc-row"><span class="sc-action">Shortcuts</span><kbd class="sc-key">?</kbd></div>
+      <div class="sc-row"><span class="sc-action">Close</span><kbd class="sc-key">Esc</kbd></div>
+    </div>
+    <button class="sc-close-btn" onclick="toggleShortcuts()">Close — Esc</button>
+  </div>
+</div>
+
 <script>
-// Load the web dashboard
-window.location.href = '../index.html';
+/* ══════════════════════════════════════════════════════════════════
+   CONbot5 DESKTOP CONTROLLER
+   Bridges Electron IPC ↔ Web Dashboard
+   ══════════════════════════════════════════════════════════════════ */
+
+// ── Electron bridge ─────────────────────────────────────────────
+const ipc = window.CONbot5 || null;
+
+// Get config from Electron
+if (ipc) {
+  ipc.getConfig().then(cfg => {
+    const frame = document.getElementById('webFrame');
+    frame.contentWindow.ENV_GUILD_ID = cfg.GUILD_ID || '';
+    frame.contentWindow.ENV_API_URL = cfg.API_URL || 'http://localhost:3020';
+    showNotif('✅', 'Connected', `Guild: ${cfg.GUILD_ID?.slice(0,12) || 'Not set'}…`);
+  }).catch(() => {
+    showNotif('⚠️', 'Standalone Mode', 'No Electron config found. Running in demo mode.');
+  });
+} else {
+  // Redirect to web app directly when not in Electron
+  const frame = document.getElementById('webFrame');
+  if (frame.src.startsWith('file://')) {
+    // In dev, just show the web frame directly
+    console.log('[CONbot5 Desktop] Running in browser mode');
+  }
+}
+
+// ── Titlebar Controls ─────────────────────────────────────────────
+function winMin() { if (ipc) ipc.minimize(); }
+function winMax() { if (ipc) ipc.maximize(); }
+function winClose() { if (ipc) ipc.close(); }
+
+// ── Navigation ────────────────────────────────────────────────────
+function navTo(section) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+
+  const frame = document.getElementById('webFrame');
+  // Post message to web frame to scroll/show section
+  frame.contentWindow?.postMessage({type:'navigate', section}, '*');
+}
+
+// ── Tray Controls ─────────────────────────────────────────────────
+let playing = true;
+let muted = false;
+
+function tbarPlay() {
+  playing = !playing;
+  document.getElementById('tb-play').textContent = playing ? '⏸' : '▶';
+  document.getElementById('tb-playBtn').textContent = playing ? '⏸' : '▶';
+  document.getElementById('webFrame').contentWindow?.postMessage({type:'cmd', cmd: playing ? 'play' : 'pause'}, '*');
+  sendCmd(playing ? 'play' : 'pause');
+}
+
+function tbarNext() {
+  document.getElementById('webFrame').contentWindow?.postMessage({type:'cmd', cmd:'next'}, '*');
+  sendCmd('next');
+}
+
+function tbarPrev() {
+  document.getElementById('webFrame').contentWindow?.postMessage({type:'cmd', cmd:'prev'}, '*');
+  sendCmd('prev');
+}
+
+function tbarMute() {
+  muted = !muted;
+  document.getElementById('tb-mute').textContent = muted ? '🔇' : '🔊';
+}
+
+function tbarLike() {
+  const el = document.getElementById('tb-like');
+  el.textContent = el.textContent === '♡' ? '♥' : '♡';
+  el.style.color = el.textContent === '♥' ? 'var(--a2)' : '';
+}
+
+function openSettings() {
+  document.getElementById('webFrame').contentWindow?.postMessage({type:'openSettings'}, '*');
+}
+
+// ── Keyboard Shortcuts ─────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  const k = e.key;
+  if (k === ' ') { e.preventDefault(); tbarPlay(); }
+  else if (k === 'ArrowRight') tbarNext();
+  else if (k === 'ArrowLeft') tbarPrev();
+  else if (k.toLowerCase() === 'm') tbarMute();
+  else if (k === '?') toggleShortcuts();
+  else if (k === 'Escape') { document.getElementById('shortcuts').classList.remove('visible'); }
+  else if (k === 'F' && e.ctrlKey) {
+    e.preventDefault();
+    document.getElementById('webFrame').contentWindow?.postMessage({type:'openSearch'}, '*');
+  }
+});
+
+function toggleShortcuts() {
+  document.getElementById('shortcuts').classList.toggle('visible');
+}
+
+// ── Progress update (via postMessage from web frame) ─────────────
+window.addEventListener('message', e => {
+  if (e.data?.type === 'state') {
+    const {title, artist, elapsed, total, playing: p} = e.data;
+    if (title) document.getElementById('tb-title').textContent = title;
+    if (artist) document.getElementById('tb-artist').textContent = artist;
+    if (elapsed !== undefined && total) {
+      const pct = (elapsed / total * 100).toFixed(1);
+      document.getElementById('tb-fill').style.width = pct + '%';
+      const em = Math.floor(elapsed/60), es = elapsed%60;
+      const tm = Math.floor(total/60), ts = total%60;
+      document.getElementById('tb-time').textContent =
+        `${em}:${String(es).padStart(2,'0')} / ${tm}:${String(ts).padStart(2,'0')}`;
+    }
+  }
+});
+
+// ── Seek from tray progress ────────────────────────────────────────
+function seek(e) {
+  const r = e.currentTarget.getBoundingClientRect();
+  const pct = (e.clientX - r.left) / r.width;
+  document.getElementById('webFrame').contentWindow?.postMessage({type:'seek', pct}, '*');
+}
+
+// ── Send commands to API ───────────────────────────────────────────
+const API_URL = window.ENV_API_URL || 'http://localhost:3020';
+const GUILD_ID = window.ENV_GUILD_ID || '';
+
+function sendCmd(cmd, payload = {}) {
+  if (!GUILD_ID) return;
+  fetch(`${API_URL}/commands/${GUILD_ID}`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({command: cmd, ...payload}),
+  }).catch(() => {});
+}
+
+// ── Notifications ──────────────────────────────────────────────────
+function showNotif(icon, title, body, duration = 4000) {
+  const container = document.getElementById('notif');
+  const card = document.createElement('div');
+  card.className = 'notif-card';
+  card.innerHTML = `
+    <span class="notif-icon">${icon}</span>
+    <div class="notif-text">
+      <div class="notif-title">${title}</div>
+      <div class="notif-body">${body}</div>
+    </div>
+    <span class="notif-close" onclick="this.parentElement.remove()">✕</span>`;
+  container.appendChild(card);
+  setTimeout(() => card.remove(), duration);
+}
+
+// ── Auto-poll API state ────────────────────────────────────────────
+if (GUILD_ID) {
+  setInterval(async () => {
+    try {
+      const res = await fetch(`${API_URL}/state/${GUILD_ID}`);
+      const data = await res.json();
+      if (data.current) {
+        document.getElementById('tb-title').textContent = data.current.title?.slice(0, 40) || '—';
+        document.getElementById('tb-artist').textContent = data.current.channel || '—';
+        const pct = ((data.elapsed || 0) / (data.current.durationInSec || 1) * 100).toFixed(1);
+        document.getElementById('tb-fill').style.width = pct + '%';
+      }
+    } catch {}
+  }, 3000);
+}
+
+// ── Welcome notification ────────────────────────────────────────────
+setTimeout(() => {
+  showNotif('🎵', 'CONbot5 Supreme', 'Your living music companion is ready.', 3500);
+}, 800);
 </script>
 </body>
 </html>
