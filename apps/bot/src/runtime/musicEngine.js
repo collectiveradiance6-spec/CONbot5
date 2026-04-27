@@ -444,59 +444,106 @@ console.log("[Engine] resource started:", {
 
 // ── VOICE CONNECTION ───────────────────────────────────────────────────
 async function ensureVC(state, vc, client) {
-  const ex = getVoiceConnection(state.guildId);
-  if (ex && state.connection===ex) return ex;
+  const guildId = state.guildId;
+
+  // Reuse existing healthy connection
+  const ex = getVoiceConnection(guildId);
+  if (
+    ex &&
+    ex.state.status !== VoiceConnectionStatus.Disconnected &&
+    ex.state.status !== VoiceConnectionStatus.Destroyed &&
+    state.voiceChannelId === vc.id
+  ) {
+    // Re-subscribe if somehow lost
+    if (ex.state.status === VoiceConnectionStatus.Ready && state.player) {
+      if (!ex.state.subscription) ex.subscribe(state.player);
+    }
+    return ex;
+  }
+
+  // Destroy stale connection before creating new one
+  if (ex) { try { ex.destroy(); } catch {} }
 
   const conn = joinVoiceChannel({
-    channelId: vc.id, guildId: state.guildId,
-    adapterCreator: vc.guild.voiceAdapterCreator,
-    selfDeaf:false, selfMute:false,
+    channelId:        vc.id,
+    guildId,
+    adapterCreator:   vc.guild.voiceAdapterCreator,
+    selfDeaf:         false,  // MUST be false — selfDeaf stops audio delivery
+    selfMute:         false,
   });
 
   state.connection     = conn;
   state.voiceChannelId = vc.id;
   state.client         = client;
 
+  // Log connection state transitions
+  conn.on('stateChange', (oldS, newS) => {
+    console.log(`[Voice] ${guildId}: ${oldS.status} → ${newS.status}`);
+  });
+
+  // Create audio player once
   if (!state.player) {
     state.player = createAudioPlayer({
-  behaviors: {
-    noSubscriber: NoSubscriberBehavior.Play,
-  },
-});
-state.player.on("stateChange", (oldState, newState) => {
-  console.log(`[Engine] player state: ${oldState.status} -> ${newState.status}`);
-});
+      behaviors: { noSubscriber: NoSubscriberBehavior.Play },
+    });
+    state.player.on('stateChange', (oldS, newS) => {
+      console.log(`[Audio] player: ${oldS.status} → ${newS.status}`);
+    });
     state.player.on(AudioPlayerStatus.Idle, () => {
       clearInterval(state.progressTimer);
-      try { client.user.setActivity('🎵 CONbot5 Supreme | /play', {type:2}); } catch {}
-      setTimeout(()=>playNext(state, client), 300);
+      try { client.user.setActivity('🎵 CONbot5 Supreme | /play', { type: 2 }); } catch {}
+      setTimeout(() => playNext(state, client), 300);
     });
     state.player.on('error', e => {
       console.error('[Engine] player err:', e.message);
       clearInterval(state.progressTimer);
-      state.current=null; state.paused=false;
-      setTimeout(()=>playNext(state, client), YT_SKIP_DELAY);
+      state.current = null; state.paused = false;
+      setTimeout(() => playNext(state, client), YT_SKIP_DELAY);
     });
   }
 
-  conn.subscribe(state.player);
+  // CRITICAL: wait for Ready BEFORE subscribing
+  try {
+    await entersState(conn, VoiceConnectionStatus.Ready, 15_000);
+    console.log(`[Voice] ${guildId}: Ready in vc=${vc.name}`);
+  } catch (err) {
+    console.error(`[Voice] ${guildId}: failed to reach Ready:`, err.message);
+    try { conn.destroy(); } catch {}
+    state.connection = null;
+    throw new Error(`Voice connection failed: ${err.message}`);
+  }
 
-  conn.on(VoiceConnectionStatus.Disconnected, async() => {
+  // Subscribe player to connection only after Ready
+  conn.subscribe(state.player);
+  console.log(`[Voice] ${guildId}: subscribed player`);
+
+  // Reconnect handler
+  conn.on(VoiceConnectionStatus.Disconnected, async () => {
+    console.log(`[Voice] ${guildId}: disconnected — attempting recovery`);
     try {
       await Promise.race([
         entersState(conn, VoiceConnectionStatus.Signalling, 5_000),
         entersState(conn, VoiceConnectionStatus.Connecting, 5_000),
       ]);
+      // Recovered — re-subscribe
+      if (state.player && !conn.state.subscription) conn.subscribe(state.player);
     } catch {
-      if (state.mood||state.autoplay||permanentRooms.has(state.guildId)) {
-        setTimeout(async()=>{
+      if (state.mood || state.autoplay || permanentRooms.has(guildId)) {
+        setTimeout(async () => {
           try {
-            const g  = client.guilds.cache.get(state.guildId);
+            const g  = client.guilds.cache.get(guildId);
             const ch = g?.channels.cache.get(state.voiceChannelId);
-            if (ch) { await ensureVC(state,ch,client); if(!state.current||state.player?.state?.status!==AudioPlayerStatus.Playing) await playNext(state,client); }
-          } catch {}
+            if (ch) {
+              await ensureVC(state, ch, client);
+              if (!state.current || state.player?.state?.status !== AudioPlayerStatus.Playing)
+                await playNext(state, client);
+            }
+          } catch (e) { console.error('[Voice] reconnect failed:', e.message); }
         }, RECONNECT_MS);
-      } else { conn.destroy(); state.connection=null; }
+      } else {
+        try { conn.destroy(); } catch {}
+        state.connection = null;
+      }
     }
   });
 
