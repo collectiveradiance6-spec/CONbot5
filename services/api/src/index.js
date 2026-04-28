@@ -1,477 +1,306 @@
-// ═══════════════════════════════════════════════════════════════════════
-// CONbot5 — API SERVICE v8.0
-// REST + SSE + WebSocket + Discord OAuth (fixed redirect_uri)
-// services/api/src/index.js
-// ═══════════════════════════════════════════════════════════════════════
-'use strict';
-require('dotenv').config();
+// services/api/src/index.js — CONbot5 Sovereign API v9
+// Fixes: WS drops, OAuth redirect, selfDeaf, Activity URL
+import 'dotenv/config';
+import Fastify from 'fastify';
+import cors from '@fastify/cors';
+import { WebSocketServer } from 'ws';
+import http from 'http';
+import https from 'https';
+import { URL } from 'url';
 
-const express  = require('express');
-const cors     = require('cors');
-const http     = require('http');
-const https    = require('https');
-const { WebSocketServer } = require('ws'); // npm install ws
+const app = Fastify({ logger: false });
+await app.register(cors, { origin: true, credentials: true });
 
-const PORT           = parseInt(process.env.PORT || '3020');
-const BOT_TOKEN      = process.env.API_BOT_TOKEN    || 'conbot5-internal';
-const CLIENT_ID      = process.env.DISCORD_CLIENT_ID     || '';
-const CLIENT_SECRET  = process.env.DISCORD_CLIENT_SECRET || '';
-const HOME_GUILD     = process.env.HOME_GUILD_ID    || '1438103556610723922';
-const WEB_URL        = process.env.WEB_URL          || 'https://conbot5.pages.dev';
+const PORT        = process.env.PORT        || 3010;
+const CLIENT_ID   = process.env.DISCORD_CLIENT_ID   || '1496510504196116480';
+const CLIENT_SEC  = process.env.DISCORD_CLIENT_SECRET || '';
+const BOT_TOKEN   = process.env.DISCORD_BOT_TOKEN   || '';
+const WEB_URL     = process.env.WEB_URL     || 'https://conbot5.pages.dev';
+const HOME_GUILD  = process.env.HOME_GUILD_ID || '1438103556610723922';
 
-// The registered Discord OAuth redirect on the Pages domain
-// Cloudflare _worker.js proxies /api/auth/discord/callback → this server's /auth/web/callback
-const OAUTH_REDIRECT = `${WEB_URL}/api/auth/discord/callback`;
+// REDIRECT must exactly match what's registered in Discord Developer Portal
+const REDIRECT_URI = `${WEB_URL}/api/auth/discord/callback`;
 
-const ADMIN_ROLE_NAMES = new Set([
-  'TheConclave','Admin','Administrator','High Curator','Archmaestro',
-  'Wildheart','Skywarden','Oracle of Veils','ForgeSmith',
-  'Iron Vanguard','Gatekeeper','Veilcaster','Hazeweaver',
-  'Moderator','Mod',
+const ADMIN_ROLES = new Set([
+  'TheConclave','High Curator','Archmaestro','Wildheart',
+  'Moderator','Admin','Administrator','Council','Staff','Bot Manager'
 ]);
 
-const app    = express();
-const server = http.createServer(app);
+/* ══════════════════════════════════════════════
+   IN-MEMORY STATE
+══════════════════════════════════════════════ */
+const guilds    = new Map(); // guildId → { track, queue, users, progress, ts }
+const wsClients = new Map(); // guildId → Set<ws>
+const sseClients= new Map(); // guildId → Set<res>
 
-// ── CORS — allow Pages domain and localhost ────────────────────────────
-app.use(cors({
-  origin: (origin, cb) => cb(null, true), // allow all for SSE/WS
-  credentials: true,
-}));
-app.use(express.json({ limit: '2mb' }));
-
-// ── ACTIVITY ROUTE ────────────────────────────────────────────────────
-try { const a = require('./activity'); app.use('/activity', a); }
-catch(e) { console.warn('[API] activity route not found:', e.message); }
-
-// ── IN-MEMORY STATE ────────────────────────────────────────────────────
-const roomStates  = new Map(); // guildId → state
-const pendingCmds = new Map(); // guildId → [{command,payload,ts}]
-const sseClients  = new Map(); // guildId → Set<res>
-
-// ── AUTH MIDDLEWARE ────────────────────────────────────────────────────
-function botAuth(req, res, next) {
-  if (req.headers['x-bot-token'] !== BOT_TOKEN)
-    return res.status(401).json({ error: 'Unauthorized' });
-  next();
+function guildState(id) {
+  if (!guilds.has(id)) guilds.set(id, {
+    track: null, queue: [], users: [], progress: 0,
+    playing: false, volume: 100, ts: Date.now()
+  });
+  return guilds.get(id);
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// WEBSOCKET SERVER — realtime customization + command bus
-// Clients connect to ws://conbot5-api.onrender.com/ws?guild=GUILD_ID
-// ═══════════════════════════════════════════════════════════════════════
-const wss = new WebSocketServer({ server, path: '/ws' });
-const wsClients = new Map(); // guildId → Set<ws>
-
-wss.on('connection', (ws, req) => {
-  const url     = new URL(req.url, 'ws://localhost');
-  const guildId = url.searchParams.get('guild');
-
-  if (!guildId) { ws.close(1008, 'guild param required'); return; }
-
-  if (!wsClients.has(guildId)) wsClients.set(guildId, new Set());
-  wsClients.get(guildId).add(ws);
-
-  // Push current state immediately
-  const state = roomStates.get(guildId);
-  if (state) ws.send(JSON.stringify({ type: 'state', data: state }));
-
-  ws.on('message', (raw) => {
-    try {
-      const msg = JSON.parse(raw.toString());
-      // Forward commands from WebSocket client into the pending queue
-      if (msg.type === 'command' && msg.command) {
-        const { command, ...payload } = msg;
-        if (!pendingCmds.has(guildId)) pendingCmds.set(guildId, []);
-        pendingCmds.get(guildId).push({ command, payload, ts: Date.now() });
-        // Also broadcast optimistic state change back
-        broadcastWS(guildId, { type: 'command_ack', command, ts: Date.now() });
-      }
-    } catch {}
+function broadcast(guildId, payload) {
+  const msg = JSON.stringify(payload);
+  // WS
+  (wsClients.get(guildId) || new Set()).forEach(ws => {
+    if (ws.readyState === 1) ws.send(msg);
   });
+  // SSE
+  (sseClients.get(guildId) || new Set()).forEach(res => {
+    try { res.raw.write(`data: ${msg}\n\n`); } catch {}
+  });
+}
 
-  ws.on('close',   () => wsClients.get(guildId)?.delete(ws));
-  ws.on('error',   () => wsClients.get(guildId)?.delete(ws));
+/* ══════════════════════════════════════════════
+   HTTP SERVER + WS UPGRADE
+══════════════════════════════════════════════ */
+const server = http.createServer(app.server ? app.server._events.request : app.routing);
+const wss = new WebSocketServer({ noServer: true });
 
-  // Keepalive ping
-  const ping = setInterval(() => {
-    if (ws.readyState === 1) ws.ping();
-  }, 25_000);
-  ws.on('close', () => clearInterval(ping));
+server.on('upgrade', (req, socket, head) => {
+  const u = new URL(req.url, `http://${req.headers.host}`);
+  if (u.pathname === '/ws') {
+    wss.handleUpgrade(req, socket, head, ws => {
+      const guildId = u.searchParams.get('guild') || HOME_GUILD;
+      if (!wsClients.has(guildId)) wsClients.set(guildId, new Set());
+      wsClients.get(guildId).add(ws);
+
+      // Send current state immediately on connect
+      const g = guildState(guildId);
+      ws.send(JSON.stringify({ type: 'stateSync', ...g }));
+
+      ws.on('message', raw => {
+        try {
+          const msg = JSON.parse(raw);
+          handleCommand(guildId, msg);
+        } catch {}
+      });
+
+      ws.on('close', () => wsClients.get(guildId)?.delete(ws));
+      ws.on('error', () => wsClients.get(guildId)?.delete(ws));
+
+      // Ping-pong to detect dead connections (fixes dropping)
+      const ping = setInterval(() => {
+        if (ws.readyState === 1) ws.ping();
+        else { clearInterval(ping); wsClients.get(guildId)?.delete(ws); }
+      }, 25000);
+      ws.on('pong', () => {}); // connection alive
+    });
+  } else {
+    socket.destroy();
+  }
 });
 
-function broadcastWS(guildId, data) {
-  const clients = wsClients.get(guildId);
-  if (!clients?.size) return;
-  const msg = JSON.stringify(data);
-  for (const ws of clients) {
-    if (ws.readyState === 1) { try { ws.send(msg); } catch {} }
+/* ══════════════════════════════════════════════
+   BOT COMMAND BUS (HTTP → Bot)
+══════════════════════════════════════════════ */
+const pendingCmds = new Map(); // guildId → [cmd,...]
+
+function handleCommand(guildId, cmd) {
+  if (!pendingCmds.has(guildId)) pendingCmds.set(guildId, []);
+  pendingCmds.get(guildId).push({ ...cmd, ts: Date.now() });
+  // Apply optimistic UI state
+  const g = guildState(guildId);
+  if (cmd.type === 'volume') g.volume = cmd.value;
+  if (cmd.type === 'shuffle') g.shuffle = cmd.value;
+  if (cmd.type === 'loop') g.loop = cmd.value;
+}
+
+/* ══════════════════════════════════════════════
+   BOT POLL ENDPOINT (bot calls this every 500ms)
+══════════════════════════════════════════════ */
+app.get('/bot/poll/:guildId', async (req, reply) => {
+  const { guildId } = req.params;
+  const cmds = pendingCmds.get(guildId) || [];
+  pendingCmds.set(guildId, []); // flush
+  return { commands: cmds.filter(c => Date.now() - c.ts < 30000) };
+});
+
+/* ══════════════════════════════════════════════
+   BOT STATE PUSH (bot POSTs state updates here)
+══════════════════════════════════════════════ */
+app.post('/bot/state/:guildId', async (req, reply) => {
+  const { guildId } = req.params;
+  const g = guildState(guildId);
+  Object.assign(g, req.body, { ts: Date.now() });
+  broadcast(guildId, { type: 'stateSync', ...g });
+  return { ok: true };
+});
+
+app.post('/bot/event/:guildId', async (req, reply) => {
+  const { guildId } = req.params;
+  const evt = req.body;
+  const g = guildState(guildId);
+
+  if (evt.type === 'trackStart') {
+    g.track = evt.track; g.progress = 0; g.playing = true; g.ts = Date.now();
+  } else if (evt.type === 'trackEnd') {
+    g.playing = false; g.progress = 0;
+  } else if (evt.type === 'progress') {
+    g.progress = evt.progress;
+  } else if (evt.type === 'queue') {
+    g.queue = evt.queue;
+  } else if (evt.type === 'users') {
+    g.users = evt.users;
+  }
+
+  broadcast(guildId, evt);
+  return { ok: true };
+});
+
+/* ══════════════════════════════════════════════
+   WEB → BOT COMMAND (frontend POSTs here)
+══════════════════════════════════════════════ */
+app.post('/commands/:guildId', async (req, reply) => {
+  const { guildId } = req.params;
+  handleCommand(guildId, req.body);
+  broadcast(guildId, { type: 'cmdAck', cmd: req.body.type });
+  return { ok: true };
+});
+
+/* ══════════════════════════════════════════════
+   SSE (fallback for WS)
+══════════════════════════════════════════════ */
+app.get('/events/:guildId', async (req, reply) => {
+  const { guildId } = req.params;
+  reply.raw.setHeader('Content-Type', 'text/event-stream');
+  reply.raw.setHeader('Cache-Control', 'no-cache');
+  reply.raw.setHeader('X-Accel-Buffering', 'no');
+  reply.raw.write('retry: 3000\n\n');
+
+  const g = guildState(guildId);
+  reply.raw.write(`data: ${JSON.stringify({ type: 'stateSync', ...g })}\n\n`);
+
+  if (!sseClients.has(guildId)) sseClients.set(guildId, new Set());
+  sseClients.get(guildId).add(reply);
+
+  req.raw.on('close', () => sseClients.get(guildId)?.delete(reply));
+});
+
+/* ══════════════════════════════════════════════
+   DISCORD OAUTH2
+══════════════════════════════════════════════ */
+app.get('/auth/login', async (req, reply) => {
+  const scope = encodeURIComponent('identify guilds guilds.members.read');
+  const url = `https://discord.com/api/oauth2/authorize`
+    + `?client_id=${CLIENT_ID}`
+    + `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`
+    + `&response_type=code`
+    + `&scope=${scope}`;
+  reply.redirect(url);
+});
+
+// Handles BOTH /auth/discord/callback AND /auth/web/callback
+async function oauthCallback(req, reply) {
+  const code = req.query.code;
+  if (!code) return reply.redirect(`${WEB_URL}/?error=no_code`);
+
+  try {
+    // Exchange code for token
+    const tokenRes = await discordFetch('POST', '/oauth2/token', null,
+      new URLSearchParams({
+        client_id: CLIENT_ID,
+        client_secret: CLIENT_SEC,
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: REDIRECT_URI
+      }).toString(),
+      'application/x-www-form-urlencoded'
+    );
+    if (tokenRes.error) throw new Error(tokenRes.error_description || tokenRes.error);
+    const { access_token } = tokenRes;
+
+    // Get user
+    const user = await discordFetch('GET', '/users/@me', access_token);
+    // Get guilds
+    const userGuilds = await discordFetch('GET', '/users/@me/guilds', access_token);
+    const inHome = (userGuilds || []).some(g => g.id === HOME_GUILD);
+
+    let isAdmin = false;
+    if (inHome && BOT_TOKEN) {
+      const member = await discordFetch('GET', `/guilds/${HOME_GUILD}/members/${user.id}`, null, null, null, BOT_TOKEN);
+      const guildInfo = await discordFetch('GET', `/guilds/${HOME_GUILD}/roles`, null, null, null, BOT_TOKEN);
+      const userRoleIds = new Set(member.roles || []);
+      isAdmin = (guildInfo || []).some(r => userRoleIds.has(r.id) && ADMIN_ROLES.has(r.name));
+    }
+
+    const payload = Buffer.from(JSON.stringify({
+      id: user.id,
+      username: user.username,
+      avatar: user.avatar,
+      inGuild: inHome,
+      isAdmin,
+      ts: Date.now()
+    })).toString('base64');
+
+    reply.redirect(`${WEB_URL}/?auth=${payload}`);
+  } catch (e) {
+    console.error('[OAuth]', e.message);
+    reply.redirect(`${WEB_URL}/?error=${encodeURIComponent(e.message)}`);
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// DISCORD HTTP HELPERS
-// ═══════════════════════════════════════════════════════════════════════
-function discordGet(path, token) {
+app.get('/auth/discord/callback', oauthCallback);
+app.get('/auth/web/callback', oauthCallback);
+app.get('/api/auth/discord/callback', oauthCallback); // worker passthrough alias
+
+/* ══════════════════════════════════════════════
+   HEALTH
+══════════════════════════════════════════════ */
+app.get('/health', async () => ({
+  status: 'ok',
+  uptime: process.uptime(),
+  guilds: guilds.size,
+  wsClients: [...wsClients.values()].reduce((a, s) => a + s.size, 0),
+  sseClients: [...sseClients.values()].reduce((a, s) => a + s.size, 0),
+  pendingCmds: [...pendingCmds.values()].reduce((a, c) => a + c.length, 0)
+}));
+
+/* ══════════════════════════════════════════════
+   STALE CLEANUP (every 30min)
+══════════════════════════════════════════════ */
+setInterval(() => {
+  const cutoff = Date.now() - 4 * 3600 * 1000;
+  for (const [id, g] of guilds) {
+    if (!g.playing && g.ts < cutoff) guilds.delete(id);
+  }
+}, 30 * 60 * 1000);
+
+/* ══════════════════════════════════════════════
+   DISCORD API HELPER
+══════════════════════════════════════════════ */
+function discordFetch(method, path, userToken, body, contentType, botToken) {
   return new Promise((resolve, reject) => {
+    const headers = { 'Content-Type': contentType || 'application/json' };
+    if (userToken) headers['Authorization'] = `Bearer ${userToken}`;
+    if (botToken)  headers['Authorization'] = `Bot ${botToken}`;
     const opts = {
       hostname: 'discord.com',
-      path:     `/api/v10${path}`,
-      headers:  { Authorization: `Bearer ${token}`, 'User-Agent': 'CONbot5/8.0' },
+      path: `/api/v10${path}`,
+      method, headers
     };
-    https.get(opts, res => {
-      let body = '';
-      res.on('data', d => body += d);
-      res.on('end', () => {
-        try { resolve(JSON.parse(body)); }
-        catch { reject(new Error('Discord returned non-JSON')); }
-      });
-    }).on('error', reject);
-  });
-}
-
-function discordPost(path, params) {
-  return new Promise((resolve, reject) => {
-    // Build URL-encoded body
-    const body    = Object.entries(params)
-      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-      .join('&');
-    const payload = Buffer.from(body, 'utf-8');
-
-    const opts = {
-      hostname: 'discord.com',
-      path:     `/api/v10${path}`,
-      method:   'POST',
-      headers:  {
-        'Content-Type':   'application/x-www-form-urlencoded',
-        'Content-Length': payload.byteLength, // byte length, not char length
-        'User-Agent':     'CONbot5/8.0',
-      },
-    };
-
     const req = https.request(opts, res => {
-      let data = '';
-      res.on('data', d => data += d);
+      let d = '';
+      res.on('data', c => d += c);
       res.on('end', () => {
-        try { resolve(JSON.parse(data)); }
-        catch { reject(new Error(`Discord token exchange returned non-JSON: ${data.slice(0,200)}`)); }
+        try { resolve(JSON.parse(d)); } catch { resolve(d); }
       });
     });
     req.on('error', reject);
-    req.write(payload);
+    if (body) req.write(body);
     req.end();
   });
 }
 
-async function fetchMemberWithBot(guildId, userId) {
-  const tok = process.env.DISCORD_BOT_TOKEN;
-  if (!tok) return null;
-  return new Promise(resolve => {
-    const opts = {
-      hostname: 'discord.com',
-      path:     `/api/v10/guilds/${guildId}/members/${userId}`,
-      headers:  { Authorization: `Bot ${tok}`, 'User-Agent': 'CONbot5/8.0' },
-    };
-    https.get(opts, res => {
-      let body = '';
-      res.on('data', d => body += d);
-      res.on('end', async () => {
-        try {
-          const member = JSON.parse(body);
-          const roles  = await fetchGuildRoles(guildId);
-          member.roleNames = (member.roles || [])
-            .map(id => roles.find(r => r.id === id)?.name)
-            .filter(Boolean);
-          resolve(member);
-        } catch { resolve(null); }
-      });
-    }).on('error', () => resolve(null));
-  });
-}
-
-async function fetchGuildRoles(guildId) {
-  const tok = process.env.DISCORD_BOT_TOKEN;
-  if (!tok) return [];
-  return new Promise(resolve => {
-    const opts = {
-      hostname: 'discord.com',
-      path:     `/api/v10/guilds/${guildId}/roles`,
-      headers:  { Authorization: `Bot ${tok}`, 'User-Agent': 'CONbot5/8.0' },
-    };
-    https.get(opts, res => {
-      let body = '';
-      res.on('data', d => body += d);
-      res.on('end', () => { try { resolve(JSON.parse(body)); } catch { resolve([]); } });
-    }).on('error', () => resolve([]));
-  });
-}
-
-function checkAdminRoles(roleNames = []) {
-  return roleNames.some(n => ADMIN_ROLE_NAMES.has(n));
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// HEALTH
-// ═══════════════════════════════════════════════════════════════════════
-app.get('/health', (_, res) => res.json({
-  status: 'ok', service: 'conbot5-api', version: '8.0.0',
-  guilds:      roomStates.size,
-  sseClients:  [...sseClients.values()].reduce((s, c) => s + c.size, 0),
-  wsClients:   [...wsClients.values()].reduce((s, c) => s + c.size, 0),
-  pendingCmds: [...pendingCmds.values()].reduce((s, c) => s + c.length, 0),
-  ts: new Date().toISOString(),
-}));
-
-// ═══════════════════════════════════════════════════════════════════════
-// DISCORD OAUTH
-// Called by Cloudflare _worker.js proxy:
-//   Pages /api/auth/discord/callback → this /auth/web/callback
-// ═══════════════════════════════════════════════════════════════════════
-
-// OAuth callback alias — handles both paths
-// Worker maps /api/auth/discord/callback → this endpoint
-app.get('/auth/discord/callback', (req, res, next) => {
-  req.url = '/auth/web/callback' + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '');
-  next('route');
+/* ══════════════════════════════════════════════
+   START
+══════════════════════════════════════════════ */
+await app.ready();
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`💓 Health: :${PORT}`);
+  console.log(`🎵 CONbot5 API v9 — Guild: ${HOME_GUILD}`);
+  console.log(`🔗 WS: ws://localhost:${PORT}/ws?guild=GUILD_ID`);
+  console.log(`🔐 OAuth redirect: ${REDIRECT_URI}`);
 });
-
-app.get('/auth/web/callback', async (req, res) => {
-  const { code, state: oauthState } = req.query;
-
-  if (!code) {
-    console.warn('[Auth] no code in callback');
-    return res.redirect(`${WEB_URL}/?auth_error=no_code`);
-  }
-  if (!CLIENT_ID || !CLIENT_SECRET) {
-    console.error('[Auth] DISCORD_CLIENT_ID / DISCORD_CLIENT_SECRET not set on Render');
-    return res.redirect(`${WEB_URL}/?auth_error=misconfigured`);
-  }
-
-  try {
-    // 1. Exchange code → access token
-    // redirect_uri MUST exactly match what Discord saw in the /authorize URL
-    const token = await discordPost('/oauth2/token', {
-      client_id:     CLIENT_ID,
-      client_secret: CLIENT_SECRET,
-      grant_type:    'authorization_code',
-      code,
-      redirect_uri:  OAUTH_REDIRECT,
-    });
-
-    if (token.error) {
-      console.error('[Auth] Discord token error:', token.error, token.error_description);
-      return res.redirect(`${WEB_URL}/?auth_error=${encodeURIComponent(token.error)}`);
-    }
-    if (!token.access_token) {
-      console.error('[Auth] no access_token:', JSON.stringify(token));
-      return res.redirect(`${WEB_URL}/?auth_error=token_failed`);
-    }
-
-    // 2. Fetch user identity
-    const user = await discordGet('/users/@me', token.access_token);
-
-    // 3. Fetch guilds
-    const allGuilds = await discordGet('/users/@me/guilds', token.access_token);
-
-    // 4. Enrich each candidate guild with admin role info
-    const enriched = await Promise.all(
-      allGuilds
-        .filter(g => g.id === HOME_GUILD || String(BigInt(g.permissions || '0') & BigInt(8)) !== '0')
-        .slice(0, 20)
-        .map(async g => {
-          let isAdmin = false;
-          let roleNames = [];
-          try {
-            // Check via Administrator permission bit first (fast)
-            if (String(BigInt(g.permissions || '0') & BigInt(8)) !== '0') isAdmin = true;
-            // If bot token available, get actual role names
-            if (process.env.DISCORD_BOT_TOKEN) {
-              const member = await fetchMemberWithBot(g.id, user.id);
-              roleNames = member?.roleNames || [];
-              if (!isAdmin) isAdmin = checkAdminRoles(roleNames);
-            }
-          } catch {}
-          return { id: g.id, name: g.name, icon: g.icon, isAdmin, roles: roleNames };
-        })
-    );
-
-    const safe = {
-      id: user.id, username: user.username,
-      global_name: user.global_name || user.username,
-      avatar: user.avatar,
-    };
-
-    const userB64   = Buffer.from(JSON.stringify(safe)).toString('base64url');
-    const guildsB64 = Buffer.from(JSON.stringify(enriched)).toString('base64url');
-
-    // Auto-select home guild if it's the only one or user is in it
-    const homeGuild = enriched.find(g => g.id === HOME_GUILD);
-    if (homeGuild && enriched.length === 1) {
-      return res.redirect(
-        `${WEB_URL}/?guild=${homeGuild.id}&user=${userB64}&admin=${homeGuild.isAdmin}`
-      );
-    }
-
-    res.redirect(`${WEB_URL}/?guilds=${guildsB64}&user=${userB64}`);
-
-  } catch (err) {
-    console.error('[Auth] callback error:', err.message);
-    res.redirect(`${WEB_URL}/?auth_error=server_error`);
-  }
-});
-
-// Role check endpoint
-app.get('/auth/check-role', async (req, res) => {
-  const { guild_id, user_id } = req.query;
-  if (!guild_id || !user_id) return res.json({ admin: false });
-  try {
-    const member = await fetchMemberWithBot(guild_id, user_id);
-    const admin  = checkAdminRoles(member?.roleNames || []);
-    res.json({ admin, roles: member?.roleNames || [] });
-  } catch {
-    res.json({ admin: false, roles: [] });
-  }
-});
-
-// ═══════════════════════════════════════════════════════════════════════
-// BOT STATE
-// ═══════════════════════════════════════════════════════════════════════
-app.post('/state/:guildId', botAuth, (req, res) => {
-  const { guildId } = req.params;
-  roomStates.set(guildId, { ...req.body, updatedAt: new Date().toISOString() });
-  broadcastSSE(guildId, 'state', roomStates.get(guildId));
-  broadcastWS(guildId, { type: 'state', data: roomStates.get(guildId) });
-  res.json({ ok: true });
-});
-
-app.get('/state/:guildId', (req, res) => {
-  const s = roomStates.get(req.params.guildId);
-  if (!s) return res.json({ empty: true, guildId: req.params.guildId });
-  res.json(s);
-});
-
-app.get('/admin/digest', botAuth, (_, res) => {
-  const data = [...roomStates.entries()].map(([guildId, s]) => ({
-    guildId, playing: !!s.current, track: s.current?.title?.slice(0, 60) || null,
-    mood: s.mood, volume: s.volume, queue: s.queue?.length || 0,
-    elapsed: s.elapsed || 0, paused: s.paused || false, updatedAt: s.updatedAt,
-  }));
-  res.json({ guilds: data.length, data });
-});
-
-app.get('/rooms', (_, res) => {
-  res.json({ rooms: [...roomStates.entries()].map(([guildId, s]) => ({
-    guildId, mood: s.mood, volume: s.volume, paused: s.paused,
-    current: s.current?.title || null, queueLength: s.queue?.length || 0,
-  }))});
-});
-
-// ═══════════════════════════════════════════════════════════════════════
-// SEARCH
-// ═══════════════════════════════════════════════════════════════════════
-function normalizeYtUrl(url) {
-  if (!url) return null;
-  const s = url.match(/youtu\.be\/([A-Za-z0-9_-]{11})/);
-  if (s) return `https://www.youtube.com/watch?v=${s[1]}`;
-  const w = url.match(/[?&]v=([A-Za-z0-9_-]{11})/);
-  if (w) return `https://www.youtube.com/watch?v=${w[1]}`;
-  return url;
-}
-
-const playdl = require('play-dl');
-app.get('/search', async (req, res) => {
-  const q = (req.query.q || '').trim();
-  if (!q) return res.json({ results: [] });
-  try {
-    const results = await playdl.search(q, { source: { youtube: 'video' }, limit: 8 });
-    res.json({
-      results: results.map(r => ({
-        title:         r.title,
-        url:           normalizeYtUrl(r.url) || r.url,
-        durationInSec: r.durationInSec,
-        thumbnail:     r.thumbnails?.[0]?.url || null,
-        channel:       r.channel?.name || 'YouTube',
-      }))
-    });
-  } catch (e) {
-    console.error('[API] search:', e.message);
-    res.json({ results: [], error: e.message });
-  }
-});
-
-// ═══════════════════════════════════════════════════════════════════════
-// COMMANDS — Web/WS sends, Bot polls
-// ═══════════════════════════════════════════════════════════════════════
-app.post('/commands/:guildId', (req, res) => {
-  const { guildId } = req.params;
-  const { command, ...payload } = req.body;
-  if (!command) return res.status(400).json({ error: 'command required' });
-  if (!pendingCmds.has(guildId)) pendingCmds.set(guildId, []);
-  pendingCmds.get(guildId).push({ command, payload, ts: Date.now() });
-  res.json({ ok: true, queued: pendingCmds.get(guildId).length });
-});
-
-app.get('/commands/:guildId', botAuth, (req, res) => {
-  const { guildId } = req.params;
-  const cmds = (pendingCmds.get(guildId) || []).filter(c => Date.now() - c.ts < 30_000);
-  pendingCmds.set(guildId, []);
-  res.json({ commands: cmds });
-});
-
-// ═══════════════════════════════════════════════════════════════════════
-// SSE
-// ═══════════════════════════════════════════════════════════════════════
-app.get('/events/:guildId', (req, res) => {
-  const { guildId } = req.params;
-  res.setHeader('Content-Type',                'text/event-stream');
-  res.setHeader('Cache-Control',               'no-cache');
-  res.setHeader('Connection',                  'keep-alive');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.flushHeaders();
-
-  if (!sseClients.has(guildId)) sseClients.set(guildId, new Set());
-  sseClients.get(guildId).add(res);
-
-  const s = roomStates.get(guildId);
-  if (s) res.write(`data:${JSON.stringify({ type: 'state', data: s })}\n\n`);
-
-  const hb = setInterval(() => res.write(':ping\n\n'), 25_000);
-  req.on('close', () => { clearInterval(hb); sseClients.get(guildId)?.delete(res); });
-});
-
-function broadcastSSE(guildId, type, data) {
-  const clients = sseClients.get(guildId);
-  if (!clients?.size) return;
-  const msg = `data:${JSON.stringify({ type, data })}\n\n`;
-  for (const res of clients) { try { res.write(msg); } catch {} }
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// PROGRESS TICK
-// ═══════════════════════════════════════════════════════════════════════
-setInterval(() => {
-  for (const [guildId, state] of roomStates) {
-    if (state.current && !state.paused) {
-      state.elapsed = (state.elapsed || 0) + 1;
-      const tick = { elapsed: state.elapsed, guildId };
-      broadcastSSE(guildId, 'tick', tick);
-      broadcastWS(guildId, { type: 'tick', data: tick });
-    }
-  }
-}, 1000);
-
-// ═══════════════════════════════════════════════════════════════════════
-// STALE CLEANUP
-// ═══════════════════════════════════════════════════════════════════════
-setInterval(() => {
-  const cutoff = Date.now() - 4 * 60 * 60 * 1000;
-  for (const [guildId, s] of roomStates) {
-    if (new Date(s.updatedAt).getTime() < cutoff && !s.current) {
-      roomStates.delete(guildId);
-      pendingCmds.delete(guildId);
-    }
-  }
-}, 30 * 60 * 1000);
-
-server.listen(PORT, () => console.log(`🌐 CONbot5 API v8 on :${PORT}`));
-module.exports = { app, server, wss };
