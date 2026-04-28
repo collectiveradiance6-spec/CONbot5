@@ -63,10 +63,11 @@ server.on('upgrade', (req, socket, head) => {
   const u = new URL(req.url, `http://${req.headers.host}`);
   if (u.pathname === '/ws') {
     wss.handleUpgrade(req, socket, head, ws => {
-      const guildId =
-  u.searchParams.get('guild') ||
-  u.searchParams.get('guild_id') ||
-  HOME_GUILD;
+  // Try to get guildId from 'guild' param, then 'guild_id', otherwise fallback to HOME_GUILD
+        const guildId =
+    u.searchParams.get('guild') ||
+    u.searchParams.get('guild_id') ||
+    HOME_GUILD;
       if (!wsClients.has(guildId)) wsClients.set(guildId, new Set());
       wsClients.get(guildId).add(ws);
 
