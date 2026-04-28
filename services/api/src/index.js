@@ -251,6 +251,172 @@ app.get('/auth/web/callback', oauthCallback);
 app.get('/api/auth/discord/callback', oauthCallback); // worker passthrough alias
 
 /* ══════════════════════════════════════════════
+   FRONTEND COMPATIBILITY API ROUTES
+══════════════════════════════════════════════ */
+
+app.get('/api/player/:guildId', async (req) => {
+  const { guildId } = req.params;
+  const g = guildState(guildId);
+
+  return {
+    playing: g.playing,
+    track: g.track,
+    current_track: g.track,
+    queue: g.queue,
+    volume: g.volume,
+    position: g.progress,
+    duration: g.track?.duration || g.track?.length || 0
+  };
+});
+
+app.get('/api/queue/:guildId', async (req) => {
+  const { guildId } = req.params;
+  const g = guildState(guildId);
+
+  return {
+    queue: g.queue || []
+  };
+});
+
+app.get('/api/guild/:guildId/voice', async (req) => {
+  const { guildId } = req.params;
+  const g = guildState(guildId);
+
+  return {
+    users: g.users || [],
+    members: g.users || []
+  };
+});
+
+app.post('/api/player/:guildId/play', async (req) => {
+  const { guildId } = req.params;
+
+  handleCommand(guildId, {
+    type: 'play',
+    query: req.body?.query || req.body?.url || '',
+    url: req.body?.url || req.body?.query || ''
+  });
+
+  return { ok: true };
+});
+
+app.post('/api/queue/:guildId', async (req) => {
+  const { guildId } = req.params;
+
+  handleCommand(guildId, {
+    type: 'queue',
+    query: req.body?.query || req.body?.url || '',
+    url: req.body?.url || req.body?.query || ''
+  });
+
+  return { ok: true };
+});
+
+app.post('/api/player/:guildId/pause', async (req) => {
+  const { guildId } = req.params;
+  const g = guildState(guildId);
+
+  g.playing = false;
+  handleCommand(guildId, { type: 'pause' });
+  broadcast(guildId, { type: 'player_update', data: { paused: true } });
+
+  return { ok: true };
+});
+
+app.post('/api/player/:guildId/resume', async (req) => {
+  const { guildId } = req.params;
+  const g = guildState(guildId);
+
+  g.playing = true;
+  handleCommand(guildId, { type: 'resume' });
+  broadcast(guildId, { type: 'player_update', data: { paused: false } });
+
+  return { ok: true };
+});
+
+app.post('/api/player/:guildId/skip', async (req) => {
+  const { guildId } = req.params;
+  handleCommand(guildId, { type: 'skip' });
+  return { ok: true };
+});
+
+app.post('/api/player/:guildId/previous', async (req) => {
+  const { guildId } = req.params;
+  handleCommand(guildId, { type: 'previous' });
+  return { ok: true };
+});
+
+app.post('/api/player/:guildId/volume', async (req) => {
+  const { guildId } = req.params;
+  const volume = Number(req.body?.volume ?? 70);
+
+  guildState(guildId).volume = volume;
+  handleCommand(guildId, { type: 'volume', value: volume });
+  broadcast(guildId, { type: 'volume_update', volume });
+
+  return { ok: true, volume };
+});
+
+app.post('/api/player/:guildId/seek', async (req) => {
+  const { guildId } = req.params;
+  const position = Number(req.body?.position ?? 0);
+
+  guildState(guildId).progress = position;
+  handleCommand(guildId, { type: 'seek', position });
+  broadcast(guildId, { type: 'player_update', data: { position } });
+
+  return { ok: true, position };
+});
+
+app.post('/api/player/:guildId/shuffle', async (req) => {
+  const { guildId } = req.params;
+  handleCommand(guildId, {
+    type: 'shuffle',
+    value: !!req.body?.enabled
+  });
+
+  return { ok: true };
+});
+
+app.post('/api/player/:guildId/loop', async (req) => {
+  const { guildId } = req.params;
+  handleCommand(guildId, {
+    type: 'loop',
+    mode: req.body?.mode || 'track'
+  });
+
+  return { ok: true };
+});
+
+app.post('/api/player/:guildId/join', async (req) => {
+  const { guildId } = req.params;
+
+  handleCommand(guildId, {
+    type: 'join',
+    channel_id: req.body?.channel_id || req.body?.voice_channel_id
+  });
+
+  return { ok: true };
+});
+
+app.delete('/api/queue/:guildId/clear', async (req) => {
+  const { guildId } = req.params;
+  const g = guildState(guildId);
+
+  g.queue = [];
+  handleCommand(guildId, { type: 'clearQueue' });
+  broadcast(guildId, { type: 'queue_update', queue: [] });
+
+  return { ok: true };
+});
+
+app.post('/api/queue/:guildId/shuffle', async (req) => {
+  const { guildId } = req.params;
+  handleCommand(guildId, { type: 'shuffleQueue' });
+  return { ok: true };
+});
+
+/* ══════════════════════════════════════════════
    HEALTH
 ══════════════════════════════════════════════ */
 app.get('/health', async () => ({
