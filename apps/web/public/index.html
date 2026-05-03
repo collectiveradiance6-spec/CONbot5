@@ -166,7 +166,7 @@ input,select,textarea{font-family:inherit}
 .gl-tgl::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 36% 28%,rgba(255,255,255,.96),rgba(200,210,255,.65) 55%,rgba(150,170,255,.4));box-shadow:0 1.5px 0 rgba(255,255,255,.9) inset,0 3px 8px rgba(0,0,0,.4);transition:transform .27s var(--spring)}
 .gl-tgl.on{background:linear-gradient(135deg,var(--ia),var(--ib));border-color:transparent;box-shadow:0 0 18px rgba(123,94,255,.45)}
 .gl-tgl.on::after{transform:translateX(18px)}
-.gl-sl{-webkit-appearance:none;width:100%;height:4px;border-radius:999px;background:rgba(255,255,255,.12);outline:none;cursor:pointer;box-shadow:inset 0 1px 2px rgba(0,0,0,.4)}
+.gl-sl{appearance:none;-webkit-appearance:none;width:100%;height:4px;border-radius:999px;background:rgba(255,255,255,.12);outline:none;cursor:pointer;box-shadow:inset 0 1px 2px rgba(0,0,0,.4)}
 .gl-sl::-webkit-slider-thumb{-webkit-appearance:none;width:17px;height:17px;border-radius:50%;background:radial-gradient(circle at 36% 28%,rgba(255,255,255,.96),rgba(200,210,255,.65) 55%,rgba(140,160,255,.4));box-shadow:0 1.5px 0 rgba(255,255,255,.9) inset,0 3px 8px rgba(0,0,0,.45),0 0 12px rgba(123,94,255,.4);cursor:pointer;transition:transform .15s var(--spring)}
 .gl-sl::-webkit-slider-thumb:hover{transform:scale(1.15)}
 .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-family:var(--fm);font-size:9px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;border:1px solid}
@@ -184,7 +184,7 @@ input,select,textarea{font-family:inherit}
 /* ── EQ STUDIO ── */
 .eq-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;align-items:end;height:160px}
 .eq-band{display:flex;flex-direction:column;align-items:center;gap:8px;height:100%}
-.eq-sl{-webkit-appearance:none;writing-mode:vertical-lr;direction:rtl;width:28px;height:100%;background:rgba(255,255,255,.10);border-radius:999px;outline:none;cursor:pointer;box-shadow:inset 0 1px 4px rgba(0,0,0,.4);flex:1}
+.eq-sl{appearance:none;-webkit-appearance:none;writing-mode:vertical-lr;direction:rtl;width:28px;height:100%;background:rgba(255,255,255,.10);border-radius:999px;outline:none;cursor:pointer;box-shadow:inset 0 1px 4px rgba(0,0,0,.4);flex:1}
 .eq-sl::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 36% 28%,rgba(255,255,255,.95),rgba(140,160,255,.65));box-shadow:0 1.5px 0 rgba(255,255,255,.9) inset,0 3px 8px rgba(0,0,0,.5),0 0 12px var(--ia);cursor:pointer}
 .eq-lbl{font-family:var(--fm);font-size:9px;color:var(--tx3);text-align:center}
 .eq-preset{padding:8px 18px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);font-size:12px;font-weight:600;color:var(--tx2);cursor:pointer;transition:all .18s var(--spring)}
@@ -261,7 +261,7 @@ input,select,textarea{font-family:inherit}
 .dk-prog:hover .dk-pf::after{opacity:1}
 .dk-r{display:flex;align-items:center;gap:10px;flex:1;justify-content:flex-end}
 .dk-vol{display:flex;align-items:center;gap:8px}
-.dk-vsl{width:82px;-webkit-appearance:none;height:3px;border-radius:999px;background:rgba(255,255,255,.10);outline:none;cursor:pointer}
+.dk-vsl{width:82px;appearance:none;-webkit-appearance:none;height:3px;border-radius:999px;background:rgba(255,255,255,.10);outline:none;cursor:pointer}
 .dk-vsl::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:radial-gradient(circle at 36% 28%,rgba(255,255,255,.96),rgba(200,210,255,.65));box-shadow:0 1.5px 0 rgba(255,255,255,.9) inset,0 2px 6px rgba(0,0,0,.4);cursor:pointer}
 .sp{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);font-family:var(--fm);font-size:9px;color:var(--tx3);letter-spacing:.05em}
 .sdot-sm{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.25)}
@@ -911,10 +911,10 @@ input,select,textarea{font-family:inherit}
           <div class="cb">
             <div class="sh"><div class="st">System Health</div><button class="gl-btn" style="font-size:10px;padding:5px 12px" onclick="poll();adLog('Manual refresh','tinfo')">↻ Refresh</button></div>
             <div style="display:flex;flex-direction:column;gap:10px;font-family:var(--fm);font-size:11px">
-              <div style="display:flex;justify-content:space-between;padding:8px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)"><span style="color:var(--tx3)">Discord Bot</span><div style="display:flex;align-items:center;gap:6px"><div class="sdot" id="core-bot" style=""></div><span id="core-bot-t">Checking...</span></div></div>
-              <div style="display:flex;justify-content:space-between;padding:8px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)"><span style="color:var(--tx3)">API Server</span><div style="display:flex;align-items:center;gap:6px"><div class="sdot" id="core-api" style=""></div><span id="core-api-t">Checking...</span></div></div>
-              <div style="display:flex;justify-content:space-between;padding:8px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)"><span style="color:var(--tx3)">SSE Stream</span><div style="display:flex;align-items:center;gap:6px"><div class="sdot" id="core-sse" style=""></div><span id="core-sse-t">Connecting...</span></div></div>
-              <div style="display:flex;justify-content:space-between;padding:8px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)"><span style="color:var(--tx3)">WebSocket</span><div style="display:flex;align-items:center;gap:6px"><div class="sdot" id="core-ws" style=""></div><span id="core-ws-t">Connecting...</span></div></div>
+              <div style="display:flex;justify-content:space-between;padding:8px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)"><span style="color:var(--tx3)">Discord Bot</span><div style="display:flex;align-items:center;gap:6px"><div class="sdot" id="core-bot"></div><span id="core-bot-t">Checking...</span></div></div>
+              <div style="display:flex;justify-content:space-between;padding:8px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)"><span style="color:var(--tx3)">API Server</span><div style="display:flex;align-items:center;gap:6px"><div class="sdot" id="core-api"></div><span id="core-api-t">Checking...</span></div></div>
+              <div style="display:flex;justify-content:space-between;padding:8px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)"><span style="color:var(--tx3)">SSE Stream</span><div style="display:flex;align-items:center;gap:6px"><div class="sdot" id="core-sse"></div><span id="core-sse-t">Connecting...</span></div></div>
+              <div style="display:flex;justify-content:space-between;padding:8px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)"><span style="color:var(--tx3)">WebSocket</span><div style="display:flex;align-items:center;gap:6px"><div class="sdot" id="core-ws"></div><span id="core-ws-t">Connecting...</span></div></div>
             </div>
             <div class="divider"></div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
@@ -1532,7 +1532,7 @@ function rQ(){
   if(el('sess-q'))el('sess-q').textContent=q.length+' tracks';
   if(el('hq-stat'))el('hq-stat').textContent=q.length;
   const empty='<div style="text-align:center;padding:20px;color:var(--tx3);font-family:var(--fm);font-size:11px"><div style="font-size:20px;opacity:.2;margin-bottom:8px">≋</div>Empty</div>';
-  const rmBtn=i=>'<button class="rm-btn" onclick="cmd('remove',{position:'+(i+1)+'})">✕</button>';
+  const rmBtn=i=>'<button class="rm-btn" onclick="cmd(\'remove\',{position:'+(i+1)+'})">✕</button>';
   if(!q.length){
     ['queue-list','sb-qlist','home-qlist'].forEach(id=>{ if(el(id))el(id).innerHTML=empty; });
     return;
@@ -1545,7 +1545,7 @@ function rQ(){
 function rH(){
   const h=[...(ST.history||[])].reverse().slice(0,30);
   const empty='<div style="text-align:center;padding:20px;color:var(--tx3);font-family:var(--fm);font-size:11px">No history yet</div>';
-  if(el('vault-hist'))el('vault-hist').innerHTML=h.length?h.map((t,i)=>'<div class="qr" style="animation-delay:'+i*8+'ms"><span class="qnum">↩</span><div class="qthumb">'+(t.thumbnail?'<img src="'+esc(t.thumbnail)+'" loading="lazy">':'🎵')+'</div><div class="qi"><div class="qt">'+esc(t.title)+'</div><div class="qa">'+fmt(t.duration)+' · '+esc(t.requestedBy||'Auto')+'</div></div><button class="gl-btn" style="font-size:10px;padding:5px 11px" onclick="cmd('add',{url:''+esc(t.url)+'',requestedBy:'Web'});toast('Requeued!')">↺</button></div>').join(''):empty;
+  if(el('vault-hist'))el('vault-hist').innerHTML=h.length?h.map((t,i)=>'<div class="qr" style="animation-delay:'+i*8+'ms"><span class="qnum">↩</span><div class="qthumb">'+(t.thumbnail?'<img src="'+esc(t.thumbnail)+'" loading="lazy">':'🎵')+'</div><div class="qi"><div class="qt">'+esc(t.title)+'</div><div class="qa">'+fmt(t.duration)+' · '+esc(t.requestedBy||'Auto')+'</div></div><button class="gl-btn" style="font-size:10px;padding:5px 11px" onclick="cmd(\'add\',{url:\''+esc(t.url)+'\',requestedBy:\'Web\'});toast(\'Requeued!\')">↺</button></div>').join(''):empty;
 }
 
 function rBdg(){
@@ -1581,7 +1581,7 @@ async function doSearch(){
     const res=await fetch(CFG.API+'/search?q='+encodeURIComponent(q));
     const d=await res.json();
     if(!d.results?.length){ r.innerHTML='<div style="text-align:center;padding:30px;color:var(--tx3)">No results</div>'; return; }
-    r.innerHTML=d.results.map((t,i)=>'<div class="qr" style="animation-delay:'+i*14+'ms"><span class="qnum">'+( i+1)+'</span><div class="qthumb">'+(t.thumbnail?'<img src="'+esc(t.thumbnail)+'" loading="lazy">':'🎵')+'</div><div class="qi"><div class="qt">'+esc(t.title)+'</div><div class="qa">'+fmt(t.durationInSec)+' · '+esc(t.channel||'YouTube')+'</div></div><button id="sa'+i+'" class="gl-btn" style="font-size:10px;padding:5px 12px" onclick="addTrack(''+esc(t.url)+'',''+esc(t.title.replace(/'/g,"\'"))+'','+i+')">+Add</button></div>').join('');
+    r.innerHTML=d.results.map((t,i)=>'<div class="qr" style="animation-delay:'+i*14+'ms"><span class="qnum">'+( i+1)+'</span><div class="qthumb">'+(t.thumbnail?'<img src="'+esc(t.thumbnail)+'" loading="lazy">':'🎵')+'</div><div class="qi"><div class="qt">'+esc(t.title)+'</div><div class="qa">'+fmt(t.durationInSec)+' · '+esc(t.channel||'YouTube')+'</div></div><button id="sa'+i+'" class="gl-btn" style="font-size:10px;padding:5px 12px" onclick="addTrack(\''+esc(t.url)+'\',\''+esc(t.title.replace(/'/g,"\\\'"))+'\',' +i+')">+Add</button></div>').join('');
   }catch(e){r.innerHTML='<div style="text-align:center;padding:30px;color:rgba(255,80,80,.7)">'+e.message+'</div>';}
 }
 function addTrack(url,title,i){
