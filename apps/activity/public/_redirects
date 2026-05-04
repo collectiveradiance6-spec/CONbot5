@@ -1,0 +1,10 @@
+# CONbot5 Activity — Cloudflare Pages _redirects
+# Place this file at: apps/activity/public/_redirects
+
+# Proxy all /api/* requests to the Render backend
+# Replace the URL below with your actual Render service URL
+/api/*  https://conbot5-api.onrender.com/api/:splat  200
+
+# SPA fallback — all unmatched routes serve index.html
+# This must be last
+/*  /index.html  200
