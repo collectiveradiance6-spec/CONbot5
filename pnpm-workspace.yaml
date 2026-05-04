@@ -1,1 +1,6 @@
-packages:\n  - apps/*\n  - packages/*\n  - services/*\n
+packages:
+  - apps/activity
+  - apps/bot
+  - apps/desktop
+  - packages/*
+  - services/*

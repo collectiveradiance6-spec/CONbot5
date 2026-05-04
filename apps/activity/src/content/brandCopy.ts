@@ -1,0 +1,26 @@
+export const BRAND = {
+  productName: 'CONbot5',
+  coreLabel: 'CONbot5 Core',
+  commandLabel: 'CONbot5 Command',
+  matrixLabel: 'PRISMATIC RADIANCE MATRIX',
+  domain: 'theconclavedominion.com',
+  ctas: [
+    'CONNECT TO THE DOMINION',
+    'ACCESS THE CORE',
+    'ENTER THE NETWORK',
+    'INITIALIZE YOUR SESSION',
+    'LINK WITH THE CONCLAVE',
+  ],
+  valuePillars: [
+    { title: 'IMMERSIVE', subtitle: 'Crystal-clear experience' },
+    { title: 'SMART', subtitle: 'Dynamic & optimized' },
+    { title: 'PRECISION', subtitle: 'Total control in your hands' },
+    { title: 'DISCORD', subtitle: 'Seamless integration' },
+    { title: 'AI RESPONSE', subtitle: 'Intelligent. Adaptive. Fast.' },
+    { title: '24/7 AUDIO', subtitle: 'Always online. Always reliable.' },
+    { title: 'QUEUE SYSTEM', subtitle: 'Structured playback flow' },
+    { title: 'CONTROLS', subtitle: 'Command-grade precision' },
+    { title: 'INTEGRATION CORE', subtitle: 'Connected session logic' },
+    { title: 'UPTIME GRID', subtitle: 'Reliable network presence' },
+  ],
+} as const
