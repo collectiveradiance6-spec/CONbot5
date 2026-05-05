@@ -1,136 +1,104 @@
-import { Bell, Captions, LayoutPanelTop, MoonStar, Shield, SlidersHorizontal, Volume2 } from 'lucide-react'
+import { useState } from 'react'
 import type { ResolvedActivityContext } from '../lib/activityContext'
 import { RouteHeroHeader } from '../components/layout/RouteHeroHeader'
 import { GlassCapsule } from '../components/ui/GlassCapsule'
 import { GlassCard } from '../components/ui/GlassCard'
+import { useConbotTheme } from '../theme/ThemeContext'
 
-type SettingsSection = {
-  title: string
-  eyebrow: string
-  icon: typeof MoonStar
-  items: string[]
+function Toggle({ label, sub, on }: { label: string; sub?: string; on?: boolean }) {
+  const [enabled, setEnabled] = useState(on ?? false)
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+      <div>
+        <p className="text-sm font-black text-[color:var(--conbot-text)]">{label}</p>
+        {sub && <p className="mt-0.5 text-xs text-[color:var(--conbot-muted)]">{sub}</p>}
+      </div>
+      <button type="button" onClick={() => setEnabled(e => !e)}
+        className={`relative h-7 w-12 rounded-full border transition-all ${enabled ? 'border-[color:var(--neon-cyan)] bg-[rgba(49,231,255,.2)]' : 'border-white/20 bg-white/8'}`}>
+        <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${enabled ? 'left-6' : 'left-1'}`} />
+      </button>
+    </div>
+  )
 }
 
-const sections: SettingsSection[] = [
-  {
-    title: 'Appearance',
-    eyebrow: 'Glass + theme',
-    icon: MoonStar,
-    items: ['Day shift / Night shift', 'Glass depth', 'Bloom strength', 'Face cycling speed', 'Theme intensity'],
-  },
-  {
-    title: 'Audio Preferences',
-    eyebrow: 'Playback behavior',
-    icon: Volume2,
-    items: ['Default volume', 'Preferred EQ preset', 'Night-safe mode', 'Volume normalization', 'Crossfade default'],
-  },
-  {
-    title: 'Cinema Preferences',
-    eyebrow: 'Watch Party defaults',
-    icon: Captions,
-    items: ['Default quality', 'Aspect ratio', 'Captions preference', 'Theater dim strength', 'Mini-player behavior'],
-  },
-  {
-    title: 'Room Behavior',
-    eyebrow: 'Voice room flow',
-    icon: LayoutPanelTop,
-    items: ['Auto-connect to current room', 'Ask before connecting', 'Prefer regular rooms first', 'Use room theme when available', 'Personal theme override'],
-  },
-  {
-    title: 'Notifications',
-    eyebrow: 'Signals',
-    icon: Bell,
-    items: ['Queue updates', 'Room invites', 'Watch Party sync alerts', 'Playback handoff', 'Maintenance notices'],
-  },
-  {
-    title: 'Privacy',
-    eyebrow: 'Profile + history',
-    icon: Shield,
-    items: ['Profile visibility', 'History retention', 'Clear history', 'Presence sharing', 'Connected account permissions'],
-  },
-]
+function Slider({ label, value = 72, max = 100 }: { label: string; value?: number; max?: number }) {
+  const [v, setV] = useState(value)
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+      <div className="flex justify-between mb-2">
+        <p className="text-sm font-black text-[color:var(--conbot-text)]">{label}</p>
+        <span className="text-sm font-black text-[color:var(--neon-cyan)]">{v}</span>
+      </div>
+      <input type="range" min={0} max={max} value={v} onChange={e => setV(Number(e.target.value))}
+        className="w-full h-1.5 rounded-full" style={{ accentColor: 'var(--neon-cyan)' }} />
+    </div>
+  )
+}
 
-const islandDefaults = [
-  ['Dynamic nav island', 'Face-first'],
-  ['Motion intensity', 'Reactive'],
-  ['Visualizer intensity', 'Balanced'],
-  ['Compact activity mode', 'Enabled'],
-  ['Timezone', 'America/Chicago'],
-  ['Accessibility', 'Ready'],
-]
+function Lbl({ children }: { children: React.ReactNode }) {
+  return <p className="mb-4 text-xs font-black uppercase tracking-[.18em] text-[color:var(--conbot-muted)]">{children}</p>
+}
 
-export function SettingsPage({ activityContext }: { activityContext: ResolvedActivityContext | null }) {
+export function SettingsPage({ activityContext }: { activityContext?: ResolvedActivityContext | null }) {
+  const { lightingMode, setLightingMode } = useConbotTheme()
+
   return (
     <section className="release-page-shell">
-      <RouteHeroHeader
-        eyebrow="SYSTEM SETTINGS"
-        title="System Settings"
-        subtitle="Personal preferences for appearance, room behavior, playback defaults, accessibility, privacy, and the Dynamic Command Island."
-        status={<GlassCapsule>{activityContext?.guildId ?? 'local preview'}</GlassCapsule>}
-      />
+      <RouteHeroHeader eyebrow="SYSTEM SETTINGS" title="System Settings" subtitle="Appearance, audio, cinema, room behavior, and privacy."
+        status={<GlassCapsule>Personal</GlassCapsule>} />
+      <div className="grid gap-5 lg:grid-cols-2">
+        <GlassCard className="p-6">
+          <Lbl>Appearance</Lbl>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+              <p className="text-sm font-black text-[color:var(--conbot-text)]">Lighting Mode</p>
+              <button type="button" onClick={() => setLightingMode(lightingMode === 'night' ? 'day' : 'night')}
+                className="rounded-full border border-white/20 bg-white/8 px-4 py-1.5 text-xs font-black text-[color:var(--conbot-text)] hover:bg-white/14 transition">
+                {lightingMode === 'night' ? '🌙 Night' : '☀️ Day'}
+              </button>
+            </div>
+            <Toggle label="Reactive glow" sub="Audio-reactive background" on={true} />
+            <Toggle label="Face cycling" sub="Auto-cycle nav island faces" on={true} />
+            <Slider label="Glass depth" value={62} />
+            <Slider label="Bloom intensity" value={58} />
+          </div>
+        </GlassCard>
 
-      <GlassCard className="release-feature-panel p-6">
-        <div className="release-feature-head">
-          <div className="release-feature-icon">
-            <SlidersHorizontal className="h-6 w-6" />
+        <GlassCard className="p-6">
+          <Lbl>Audio Preferences</Lbl>
+          <div className="space-y-2">
+            <Slider label="Default volume" value={72} />
+            <Toggle label="Volume normalization" on={true} />
+            <Toggle label="Night-safe mode" sub="Cap volume at 70%" />
+            <Toggle label="Voice ducking" />
+            <Slider label="Crossfade (s)" value={0} max={12} />
           </div>
-          <div>
-            <GlassCapsule>System Settings</GlassCapsule>
-            <h2>Personal command layer</h2>
-          </div>
-        </div>
-        <div className="release-feature-grid">
-          {sections.map((section) => {
-            const Icon = section.icon
-            return (
-              <div key={section.title} className="rounded-[1.2rem] border border-white/12 bg-white/7 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="release-feature-icon h-11 w-11 rounded-[1rem]">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[0.68rem] font-black uppercase tracking-[0.18em] text-[color:var(--mode-muted)]">
-                      {section.eyebrow}
-                    </p>
-                    <h3 className="mt-1 text-base font-black tracking-tight text-[color:var(--text-main)]">{section.title}</h3>
-                  </div>
-                </div>
-                <div className="mt-4 space-y-2">
-                  {section.items.map((item) => (
-                    <div
-                      key={item}
-                      className="rounded-[0.95rem] border border-white/10 bg-white/6 px-3 py-2 text-[0.74rem] font-black uppercase tracking-[0.12em] text-[color:var(--mode-text)]"
-                    >
-                      {item}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </GlassCard>
+        </GlassCard>
 
-      <GlassCard className="release-feature-panel p-6">
-        <div className="release-feature-head">
-          <div className="release-feature-icon">
-            <LayoutPanelTop className="h-6 w-6" />
+        <GlassCard className="p-6">
+          <Lbl>Notifications</Lbl>
+          <div className="space-y-2">
+            <Toggle label="Queue updates" on={true} />
+            <Toggle label="Room invites" on={true} />
+            <Toggle label="Watch Party sync" />
+            <Toggle label="Maintenance notices" on={true} />
           </div>
-          <div>
-            <GlassCapsule>Island Defaults</GlassCapsule>
-            <h2>Dynamic command shell behavior</h2>
+        </GlassCard>
+
+        <GlassCard className="p-6">
+          <Lbl>Privacy</Lbl>
+          <div className="space-y-2">
+            <Toggle label="Profile visibility" on={true} />
+            <Toggle label="Share listening history" />
+            <Toggle label="Presence sharing" on={true} />
           </div>
-        </div>
-        <div className="regular-room-grid">
-          {islandDefaults.map(([label, value]) => (
-            <span key={label}>
-              {label}
-              <br />
-              {value}
-            </span>
-          ))}
-        </div>
-      </GlassCard>
+          {activityContext && (
+            <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 p-3 text-xs text-[color:var(--conbot-muted)] font-mono">
+              uid: {activityContext.userId} · guild: {activityContext.guildId}
+            </div>
+          )}
+        </GlassCard>
+      </div>
     </section>
   )
 }
